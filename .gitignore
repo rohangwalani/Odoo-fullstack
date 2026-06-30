@@ -1,0 +1,19 @@
+# IDE and System files (Prevents workspace locking)
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Backend (Spring Boot / Maven)
+backend/target/
+backend/*.jar
+backend/*.war
+backend/.factorypath
+backend/architecture.properties
+
+# Frontend (Node / React)
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.env
+frontend/.env.local
