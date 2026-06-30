@@ -2,7 +2,6 @@
 
 ## Project Structure
 - `/backend`: Spring Boot Application
-- `/frontend`: React Application
 
 ## How to get started
 1. Make sure you are on the `main` branch and run `git pull origin main` to get the latest updates.
