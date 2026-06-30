@@ -23,13 +23,20 @@ public class User {
     @NotBlank(message = "Email cannot be blank")
     private String email;
 
+    @NotBlank(message = "Password cannot be blank")
+    private String password;
+
+    private String resetToken;
+    private java.time.LocalDateTime resetTokenExpiry;
+
     // Constructors, Getters, and Setters
 
     public User() {}
 
-    public User(String username, String email) {
+    public User(String username, String email, String password) {
         this.username = username;
         this.email = email;
+        this.password = password;
     }
 
     public Long getId() {
@@ -54,5 +61,29 @@ public class User {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getResetToken() {
+        return resetToken;
+    }
+
+    public void setResetToken(String resetToken) {
+        this.resetToken = resetToken;
+    }
+
+    public java.time.LocalDateTime getResetTokenExpiry() {
+        return resetTokenExpiry;
+    }
+
+    public void setResetTokenExpiry(java.time.LocalDateTime resetTokenExpiry) {
+        this.resetTokenExpiry = resetTokenExpiry;
     }
 }
