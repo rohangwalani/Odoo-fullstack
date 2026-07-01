@@ -1,15 +1,21 @@
 package com.hackathon.backend.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.LocalDateTime;
+
+/**
+ * User entity mapped to the `users` table.
+ * email and username are unique constraints to prevent duplicate registrations.
+ */
 @Entity
-@Table(name = "users")
+@Table(name = "users", uniqueConstraints = {
+        @UniqueConstraint(columnNames = "email", name = "uk_users_email"),
+        @UniqueConstraint(columnNames = "username", name = "uk_users_username")
+})
 public class User {
 
     @Id
@@ -17,19 +23,28 @@ public class User {
     private Long id;
 
     @NotBlank(message = "Username cannot be blank")
+    @Column(nullable = false, unique = true)
     private String username;
 
     @Email(message = "Invalid email format")
     @NotBlank(message = "Email cannot be blank")
+    @Column(nullable = false, unique = true)
     private String email;
 
     @NotBlank(message = "Password cannot be blank")
+    @Column(nullable = false)
     private String password;
 
-    private String resetToken;
-    private java.time.LocalDateTime resetTokenExpiry;
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
-    // Constructors, Getters, and Setters
+    private String resetToken;
+
+    @Column(name = "reset_token_expiry")
+    private LocalDateTime resetTokenExpiry;
+
+    // Constructors
 
     public User() {}
 
@@ -39,51 +54,25 @@ public class User {
         this.password = password;
     }
 
-    public Long getId() {
-        return id;
-    }
+    // Getters & Setters
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public String getUsername() {
-        return username;
-    }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
-    public void setUsername(String username) {
-        this.username = username;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public String getEmail() {
-        return email;
-    }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
 
-    public String getPassword() {
-        return password;
-    }
+    public String getResetToken() { return resetToken; }
+    public void setResetToken(String resetToken) { this.resetToken = resetToken; }
 
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getResetToken() {
-        return resetToken;
-    }
-
-    public void setResetToken(String resetToken) {
-        this.resetToken = resetToken;
-    }
-
-    public java.time.LocalDateTime getResetTokenExpiry() {
-        return resetTokenExpiry;
-    }
-
-    public void setResetTokenExpiry(java.time.LocalDateTime resetTokenExpiry) {
-        this.resetTokenExpiry = resetTokenExpiry;
-    }
+    public LocalDateTime getResetTokenExpiry() { return resetTokenExpiry; }
+    public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) { this.resetTokenExpiry = resetTokenExpiry; }
 }
