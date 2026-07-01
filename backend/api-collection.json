@@ -1,29 +1,317 @@
 {
 	"info": {
-		"_postman_id": "12345678-1234-1234-1234-123456789012",
-		"name": "Hackathon API",
+		"_postman_id": "hackbase-auth-v1",
+		"name": "HackBase Auth API",
+		"description": "Complete auth test suite for the HackBase backend. Test register, login, password reset, and health check endpoints. Run in order for best results.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		}
+	],
 	"item": [
 		{
-			"name": "Health Check",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "http://localhost:8080/api/health",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "8080",
-					"path": [
-						"api",
-						"health"
-					]
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "health"]
+						},
+						"description": "Verify the backend is running and connected."
+					},
+					"response": []
 				}
-			},
-			"response": []
+			]
+		},
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Register - Happy Path",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+									"pm.test('success is true', () => pm.expect(pm.response.json().success).to.be.true);",
+									"pm.test('userId is present', () => pm.expect(pm.response.json().userId).to.be.a('number'));",
+									"pm.test('email is present', () => pm.expect(pm.response.json().email).to.exist);",
+									"// Save userId for later tests",
+									"pm.collectionVariables.set('registeredUserId', pm.response.json().userId);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"john_doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"secret123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Register a new user. Expect: 201 Created + user details. Check Mailtrap inbox for welcome email!"
+					},
+					"response": []
+				},
+				{
+					"name": "Register - Duplicate Email (409)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 409 Conflict', () => pm.response.to.have.status(409));",
+									"pm.test('success is false', () => pm.expect(pm.response.json().success).to.be.false);",
+									"pm.test('message mentions already exists', () => pm.expect(pm.response.json().message).to.include('already exists'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"another_user\",\n  \"email\": \"john@example.com\",\n  \"password\": \"secret123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Try to register with an already-used email. Expect: 409 Conflict."
+					},
+					"response": []
+				},
+				{
+					"name": "Register - Duplicate Username (409)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 409 Conflict', () => pm.response.to.have.status(409));",
+									"pm.test('success is false', () => pm.expect(pm.response.json().success).to.be.false);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"john_doe\",\n  \"email\": \"differentemail@example.com\",\n  \"password\": \"secret123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Try to register with an already-taken username. Expect: 409 Conflict."
+					},
+					"response": []
+				},
+				{
+					"name": "Register - Validation Error (400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));",
+									"pm.test('success is false', () => pm.expect(pm.response.json().success).to.be.false);",
+									"pm.test('errors object present', () => pm.expect(pm.response.json().errors).to.exist);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"ab\",\n  \"email\": \"not-an-email\",\n  \"password\": \"123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Send invalid data. Expect: 400 Bad Request with field-level error messages."
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Happy Path",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+									"pm.test('success is true', () => pm.expect(pm.response.json().success).to.be.true);",
+									"pm.test('username is in response', () => pm.expect(pm.response.json().username).to.equal('john_doe'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"secret123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login with valid credentials. Expect: 200 OK with user details."
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Wrong Password (401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 401 Unauthorized', () => pm.response.to.have.status(401));",
+									"pm.test('success is false', () => pm.expect(pm.response.json().success).to.be.false);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"wrongpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login with wrong password. Expect: 401 Unauthorized."
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Unknown Email (401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 401 Unauthorized', () => pm.response.to.have.status(401));",
+									"pm.test('message is generic (no email enumeration)', () => pm.expect(pm.response.json().message).to.equal('Invalid email or password.'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"nobody@example.com\",\n  \"password\": \"whatever\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login with non-existent email. Same 401 as wrong password — no email enumeration."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Password Reset",
+			"item": [
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"john@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/password/forgot",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "password", "forgot"]
+						},
+						"description": "Request a password reset email. Always returns 200 (prevents email enumeration). Check Mailtrap for the reset link."
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"PASTE_RESET_TOKEN_FROM_EMAIL_HERE\",\n  \"newPassword\": \"newSecret456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/password/reset",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "password", "reset"]
+						},
+						"description": "Reset password using the token from the forgot-password email. Paste token from the Mailtrap reset link URL."
+					},
+					"response": []
+				}
+			]
 		}
 	]
 }
