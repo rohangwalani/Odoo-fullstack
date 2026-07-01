@@ -14,6 +14,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+/**
+ * Spring Security configuration.
+ *
+ * Public endpoints: /api/auth/**, /api/health
+ * Everything else: permitted for now (hackathon mode).
+ * To lock down specific routes, update the authorizeHttpRequests block.
+ */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -28,9 +35,13 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            // For hackathon speed, we permit all endpoints. 
-            // In a real app, you would secure specific routes here.
             .authorizeHttpRequests(auth -> auth
+                // ── Public auth endpoints ──────────────────────────
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/health").permitAll()
+                // ── Everything else is permitted (hackathon mode) ──
+                // To protect routes, replace the line below with:
+                // .anyRequest().authenticated()
                 .anyRequest().permitAll()
             );
         return http.build();
@@ -39,7 +50,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:3000",   // React default
+                "http://localhost:5173"    // Vite default
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
