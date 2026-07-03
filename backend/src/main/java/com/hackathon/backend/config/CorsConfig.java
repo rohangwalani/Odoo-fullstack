@@ -1,18 +1,14 @@
 package com.hackathon.backend.config;
 
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-
-@Configuration
-public class CorsConfig implements WebMvcConfigurer {
-
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOrigins("http://localhost:3000", "http://localhost:5173") // React/Vite default ports
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true);
-    }
-}
+/**
+ * CORS configuration is intentionally handled in SecurityConfig.java
+ * via the corsConfigurationSource() bean and cors(cors -> ...) DSL.
+ *
+ * Do NOT add a WebMvcConfigurer-based CORS here — when Spring Security is
+ * present, its filter chain runs first and adding a second CORS layer via
+ * WebMvcConfigurer causes duplicate Access-Control headers, breaking the
+ * frontend with "Multiple values in Access-Control-Allow-Origin" errors.
+ *
+ * To change allowed origins, edit SecurityConfig#corsConfigurationSource().
+ */
+// CorsConfig intentionally left empty — see SecurityConfig.java

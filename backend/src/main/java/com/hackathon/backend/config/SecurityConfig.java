@@ -39,6 +39,8 @@ public class SecurityConfig {
                 // ── Public auth endpoints ──────────────────────────
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/health").permitAll()
+                // ── Public password reset endpoints ────────────────
+                .requestMatchers("/api/password/**").permitAll()
                 // ── Everything else is permitted (hackathon mode) ──
                 // To protect routes, replace the line below with:
                 // .anyRequest().authenticated()
