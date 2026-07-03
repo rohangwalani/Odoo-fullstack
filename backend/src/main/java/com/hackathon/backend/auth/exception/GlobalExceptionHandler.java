@@ -21,7 +21,7 @@ public class GlobalExceptionHandler {
     /**
      * Handles @Valid annotation failures (missing/invalid fields).
      * Returns a map of fieldName -> errorMessage.
-     * Example: { "success": false, "message": "Validation failed", "errors": { "email": "must be a valid email" } }
+     * HTTP 400 Bad Request.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationErrors(MethodArgumentNotValidException ex) {
@@ -39,12 +39,11 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles business logic errors thrown from AuthService (duplicate email, wrong password, etc.)
-     * Returns a clean 409 Conflict response.
+     * Handles business logic errors (duplicate email, wrong password, user not found, etc.)
+     * Distinguishes 409 Conflict (duplicates) from 401 Unauthorized (bad credentials).
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<AuthResponse> handleIllegalArgument(IllegalArgumentException ex) {
-        // Distinguish between conflict (duplicate) and unauthorized (bad credentials)
         String msg = ex.getMessage();
         HttpStatus status = (msg != null && (msg.contains("already exists") || msg.contains("already taken")))
                 ? HttpStatus.CONFLICT
@@ -54,11 +53,22 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Catch-all for unexpected server errors.
+     * Handles rate limit violations.
+     * HTTP 429 Too Many Requests.
+     */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<AuthResponse> handleRateLimit(RateLimitExceededException ex) {
+        return ResponseEntity
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(AuthResponse.failure(ex.getMessage()));
+    }
+
+    /**
+     * Catch-all for unexpected server errors. HTTP 500.
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<AuthResponse> handleGenericException(Exception ex) {
-        System.err.println("[GlobalExceptionHandler] Unhandled exception: " + ex.getMessage());
+        System.err.println("[GlobalExceptionHandler] Unhandled exception: " + ex.getClass().getSimpleName() + " — " + ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(AuthResponse.failure("An unexpected error occurred. Please try again."));
