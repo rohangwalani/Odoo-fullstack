@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 /**
  * User entity mapped to the `users` table.
  * email and username are unique constraints to prevent duplicate registrations.
+ * twoFactorEnabled controls whether OTP verification is required on login.
  */
 @Entity
 @Table(name = "users", uniqueConstraints = {
@@ -44,6 +45,14 @@ public class User {
     @Column(name = "reset_token_expiry")
     private LocalDateTime resetTokenExpiry;
 
+    /**
+     * When true, login requires OTP verification sent to the user's email.
+     * Default: false (2FA disabled on registration).
+     * Users can toggle this via POST /api/auth/2fa/enable or /api/auth/2fa/disable.
+     */
+    @Column(name = "two_factor_enabled", nullable = false, columnDefinition = "TINYINT(1) DEFAULT 0")
+    private boolean twoFactorEnabled = false;
+
     // Constructors
 
     public User() {}
@@ -75,4 +84,7 @@ public class User {
 
     public LocalDateTime getResetTokenExpiry() { return resetTokenExpiry; }
     public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) { this.resetTokenExpiry = resetTokenExpiry; }
+
+    public boolean isTwoFactorEnabled() { return twoFactorEnabled; }
+    public void setTwoFactorEnabled(boolean twoFactorEnabled) { this.twoFactorEnabled = twoFactorEnabled; }
 }
