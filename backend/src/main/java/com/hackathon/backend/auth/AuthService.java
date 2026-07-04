@@ -78,7 +78,7 @@ public class AuthService {
         company.setEmail(request.getEmail().trim().toLowerCase());
         company.setPhone(request.getPhone() != null ? request.getPhone().trim() : "");
         company.setPassword(passwordEncoder.encode(request.getPassword()));
-        company.setLogo(logoPath);
+        company.setCompanyLogo(logoPath);
 
         company = companyRepository.save(company);
 
@@ -95,6 +95,11 @@ public class AuthService {
         admin.setJoiningDate(LocalDate.now());
 
         String loginId = employeeIdGenerator.generate(company, admin.getFirstName(), admin.getLastName(), admin.getJoiningDate().getYear(), null);
+        while (employeeRepository.findByLoginId(loginId).isPresent()) {
+            Employee fakeLatest = new Employee();
+            fakeLatest.setLoginId(loginId);
+            loginId = employeeIdGenerator.generate(company, admin.getFirstName(), admin.getLastName(), admin.getJoiningDate().getYear(), fakeLatest);
+        }
         admin.setLoginId(loginId);
 
         employeeRepository.save(admin);
