@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "HRMS Auth & Employee API",
-    "description": "Postman Collection for HRMS Authentication, Company & Employee Management Module",
+    "description": "Postman Collection for HRMS Authentication, Company, Employee & Profile Management Module",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -35,6 +35,21 @@
         },
         {
           "name": "2. Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "let responseData = pm.response.json();",
+                  "if (responseData.token) {",
+                  "    pm.collectionVariables.set(\"jwt_token\", responseData.token);",
+                  "    console.log(\"Token updated automatically!\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -108,6 +123,127 @@
               "host": ["localhost"],
               "port": "8080",
               "path": ["api", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile (Resume)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"about\": \"Experienced Software Engineer\",\n  \"jobDescription\": \"Full Stack Developer\",\n  \"hobbies\": \"Reading, Coding\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/profile",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get Private Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/profile/private",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "profile", "private"]
+            }
+          }
+        },
+        {
+          "name": "Update Private Info",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dateOfBirth\": \"1990-01-01\",\n  \"nationality\": \"Indian\",\n  \"gender\": \"Male\",\n  \"maritalStatus\": \"Single\",\n  \"personalEmail\": \"personal@test.com\",\n  \"residentialAddress\": \"123 Tech Park\",\n  \"bankName\": \"HDFC\",\n  \"accountNumber\": \"12345678901\",\n  \"ifscCode\": \"HDFC0001234\",\n  \"panNumber\": \"ABCDE1234F\",\n  \"uanNumber\": \"123456789012\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/profile/private",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "profile", "private"]
+            }
+          }
+        },
+        {
+          "name": "Add Skill",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Java Spring Boot\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/profile/skills",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "profile", "skills"]
+            }
+          }
+        },
+        {
+          "name": "Add Certification",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"AWS Certified Developer\",\n  \"issuer\": \"Amazon Web Services\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/profile/certifications",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "profile", "certifications"]
+            }
+          }
+        },
+        {
+          "name": "Change Password (Security)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"Password@123\",\n  \"newPassword\": \"NewSecurePass!456\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/profile/change-password",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "profile", "change-password"]
             }
           }
         }
