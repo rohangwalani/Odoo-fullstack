@@ -12,14 +12,17 @@ export const WelcomePage = () => {
 
       <div className="welcome-content">
         <div className="welcome-brand">
-          <div className="welcome-logo-box">
-            <Users size={32} />
+          <div className="welcome-logo-box" style={{ background: '#3b6be3', borderRadius: '16px' }}>
+            <span style={{ fontSize: '24px', fontWeight: 'bold', letterSpacing: '1px' }}>HRIS</span>
           </div>
         </div>
 
         <h2 className="welcome-headline">
-          Welcome to CoreHR
+          Welcome to HRIS
         </h2>
+        <p className="welcome-subtitle" style={{ fontSize: '1.25rem', color: 'var(--text-muted)', marginBottom: '2rem' }}>
+          Human Resource Information System
+        </p>
 
 
 

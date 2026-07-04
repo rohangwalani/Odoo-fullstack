@@ -70,11 +70,10 @@ export const DashboardPage = () => {
     <div className="dashboard-container">
       {/* ── Header ── */}
       <header className="dashboard-header">
-        <div className="dashboard-brand">
-          <div className="dashboard-logo">
-            <Users size={20} />
+        <div className="dashboard-brand" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer' }}>
+          <div className="dashboard-logo" style={{ background: '#3b6be3', borderRadius: '8px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 'bold', letterSpacing: '0.5px' }}>HRIS</span>
           </div>
-          <h1 className="dashboard-title">CoreHR</h1>
         </div>
 
         <nav className="dashboard-nav">

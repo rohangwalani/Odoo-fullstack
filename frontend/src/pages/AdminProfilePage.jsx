@@ -207,7 +207,7 @@ export const AdminProfilePage = () => {
             <div className="admin-profile-contact-grid">
               <div className="contact-item"><Mail size={16} /> {user.email}</div>
               <div className="contact-item"><Phone size={16} /> {user.phone}</div>
-              <div className="contact-item"><Building2 size={16} /> {user.company || 'CoreHR Solutions'}</div>
+              <div className="contact-item"><Building2 size={16} /> {user.company || 'HRIS Solutions'}</div>
               <div className="contact-item"><Briefcase size={16} /> {user.department || 'Management'}</div>
               <div className="contact-item"><User size={16} /> Manager: {user.manager || 'N/A'}</div>
               <div className="contact-item"><MapPin size={16} /> {user.location || 'Headquarters'}</div>

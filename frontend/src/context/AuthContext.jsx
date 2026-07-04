@@ -13,9 +13,9 @@ const getMockUsers = () => {
     {
       id: 'EMP-001',
       empId: 'EMP-001',
-      name: 'Sarah Jenkins',
+      name: 'Admin User',
       fullName: 'Sarah Jenkins',
-      email: 'admin@corehr.com',
+      email: 'admin@hris.com',
       password: 'admin',
       role: 'Admin',
       status: 'present',
@@ -29,9 +29,9 @@ const getMockUsers = () => {
     {
       id: 'EMP-002',
       empId: 'EMP-002',
-      name: 'Michael Chen',
+      name: 'Test Employee',
       fullName: 'Michael Chen',
-      email: 'employee@corehr.com',
+      email: 'employee@hris.com',
       password: 'password',
       role: 'Employee',
       status: 'present',
