@@ -35,15 +35,4 @@ public class LeaveController {
         return ResponseEntity.ok(leaveService.getAllLeaves());
     }
 
-    @PutMapping("/{id}/approve")
-    public ResponseEntity<LeaveResponseDTO> approveLeave(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
-        String comments = body != null ? body.get("comments") : null;
-        return ResponseEntity.ok(leaveService.approveLeave(id, comments));
-    }
-
-    @PutMapping("/{id}/reject")
-    public ResponseEntity<LeaveResponseDTO> rejectLeave(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
-        String comments = body != null ? body.get("comments") : null;
-        return ResponseEntity.ok(leaveService.rejectLeave(id, comments));
-    }
 }

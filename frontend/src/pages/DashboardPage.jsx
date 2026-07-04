@@ -89,7 +89,7 @@ export const DashboardPage = () => {
               </div>
               <div className="profile-info">
                 <span className="profile-name">{user?.name || 'User'}</span>
-                <span className="profile-role">{user?.role || 'Employee'}</span>
+                <span className="profile-role">{user?.designation || user?.role || 'Employee'}</span>
               </div>
             </div>
 
@@ -202,7 +202,7 @@ export const DashboardPage = () => {
                   </div>
                   <div className="emp-card-info">
                     <div className="emp-card-name">{empName || 'User'}</div>
-                    <div className="emp-card-role">{emp.role}</div>
+                    <div className="emp-card-role">{emp.designation || emp.role}</div>
                     <div className="emp-card-meta">
                       <span className="emp-card-id">{emp.loginId}</span> • <span>{emp.department || 'General'}</span>
                     </div>

@@ -26,10 +26,12 @@ public class LeaveService {
 
     private final LeaveRequestRepository leaveRequestRepository;
     private final EmployeeRepository employeeRepository;
+    private final NotificationService notificationService;
 
-    public LeaveService(LeaveRequestRepository leaveRequestRepository, EmployeeRepository employeeRepository) {
+    public LeaveService(LeaveRequestRepository leaveRequestRepository, EmployeeRepository employeeRepository, NotificationService notificationService) {
         this.leaveRequestRepository = leaveRequestRepository;
         this.employeeRepository = employeeRepository;
+        this.notificationService = notificationService;
     }
 
     public LeaveResponseDTO applyForLeave(String email, LeaveRequestDTO dto) {
@@ -64,6 +66,7 @@ public class LeaveService {
         }
         
         LeaveRequest saved = leaveRequestRepository.save(request);
+        notificationService.sendLeaveAppliedNotification(employee, saved);
         return mapToResponse(saved);
     }
 

@@ -14,6 +14,7 @@ import { useAuth } from '../hooks/useAuth';
 import { getEmployeeById } from '../data/mockEmployees';
 import { Modal } from '../components/Modal';
 import { Button } from '../components/Button';
+import axiosInstance from '../api/axiosInstance';
 
 export const EmployeeProfilePage = () => {
   const { id } = useParams();
@@ -420,9 +421,10 @@ export const EmployeeProfilePage = () => {
                       <h4>About</h4>
 
                       <p>
-                        Dedicated {employee.role || 'employee'} with
-                        extensive experience in the{' '}
-                        {employee.department || 'professional'} industry.
+                        {employee.aboutMe ||
+                          `Dedicated ${employee.designation || 'employee'} with
+                          extensive experience in the ${employee.department || 'company'}.
+                          Committed to achieving excellence and contributing to the team's success.`}
                       </p>
 
                       <h4>Skills</h4>
