@@ -72,16 +72,7 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.updateEmployeeByAdmin(id, userDetails.getCompanyId(), request));
     }
 
-    @PutMapping("/{id}/profile")
-    public ResponseEntity<EmployeeResponse> updateProfileByEmployee(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long id,
-            @ModelAttribute ProfileUpdateRequest request) {
-        if (!userDetails.getId().equals(id)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-        return ResponseEntity.ok(employeeService.updateProfileByEmployee(id, request));
-    }
+
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")

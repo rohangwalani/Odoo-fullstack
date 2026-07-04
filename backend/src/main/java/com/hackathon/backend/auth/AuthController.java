@@ -53,4 +53,32 @@ public class AuthController {
         }
         return ResponseEntity.ok(authService.disableTwoFactor(employeeId));
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<AuthResponse> logout() {
+        return ResponseEntity.ok(authService.logout());
+    }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<AuthResponse> changePassword(
+            @Valid @RequestBody com.hackathon.backend.auth.dto.ChangePasswordRequest request,
+            org.springframework.security.core.Authentication authentication) {
+        
+        com.hackathon.backend.security.CustomUserDetails userDetails = 
+            (com.hackathon.backend.security.CustomUserDetails) authentication.getPrincipal();
+            
+        return ResponseEntity.ok(authService.changePassword(userDetails.getId(), request));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<AuthResponse> forgotPassword(
+            @Valid @RequestBody com.hackathon.backend.auth.dto.ForgotPasswordRequest request) {
+        return ResponseEntity.ok(authService.forgotPassword(request));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<AuthResponse> resetPassword(
+            @Valid @RequestBody com.hackathon.backend.auth.dto.ResetPasswordRequest request) {
+        return ResponseEntity.ok(authService.resetPassword(request));
+    }
 }
