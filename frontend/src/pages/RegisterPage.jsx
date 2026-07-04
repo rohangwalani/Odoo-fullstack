@@ -32,27 +32,39 @@ export const RegisterPage = () => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // Store in mock database
-      const userData = {
-        name: data.fullName,
-        email: data.email,
-        phone: data.phoneNumber,
-        company: data.companyName,
-        password: data.password, // Only storing for mock purposes
-        role: user?.role === 'Admin' ? 'Employee' : 'Admin' // Admins create Employees, public users become Admins
-      };
-      
-      const newUser = registerUser(userData);
-      
-      if (user?.role === 'Admin') {
-        toast.success(`Email sent to ${data.email} with login credentials!`, { className: 'custom-toast' });
+      if (user?.role === 'ADMIN' || user?.role === 'Admin') {
+        // Admin is creating a new employee
+        const employeeData = {
+          firstName: data.fullName.split(' ')[0],
+          lastName: data.fullName.split(' ').slice(1).join(' ') || 'User',
+          email: data.email,
+          phone: data.phoneNumber,
+          password: data.password,
+          role: 'EMPLOYEE',
+          department: 'General'
+        };
+        
+        // Need to import axiosInstance directly or add createEmployee to context
+        const axiosInstance = (await import('../api/axiosInstance')).default;
+        await axiosInstance.post('/employees', employeeData);
+        
+        toast.success(`Employee ${data.fullName} created successfully!`, { className: 'custom-toast' });
         navigate('/dashboard');
       } else {
-        toast.success('Account created successfully!', { className: 'custom-toast' });
-        login(newUser.email, newUser);
-        navigate('/dashboard');
+        // Public user is creating a new company
+        const response = await registerUser({
+          company: data.companyName,
+          name: data.fullName,
+          phone: data.phoneNumber,
+          email: data.email,
+          password: data.password
+        });
+        
+        if (response && response.token) {
+          toast.success('Account created successfully!', { className: 'custom-toast' });
+          await login(response.token, null);
+          navigate('/dashboard');
+        }
       }
     } catch (error) {
       toast.error(error.message || 'Registration failed');

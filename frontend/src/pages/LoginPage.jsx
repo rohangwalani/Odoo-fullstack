@@ -28,16 +28,17 @@ export const LoginPage = () => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Call actual backend authentication
+      const response = await authenticateUser(data.email, data.password);
       
-      // Use mock authentication
-      const user = authenticateUser(data.email, data.password);
-      
-      // Pass the user's email as the token (for mock purposes) and the fully hydrated user object
-      login(user.email, user);
-      
-      toast.success('Successfully logged in!', { className: 'custom-toast' });
-      navigate('/dashboard'); 
+      if (response && response.token) {
+        // Pass the JWT token to context to save and hydrate profile
+        await login(response.token, null);
+        toast.success('Successfully logged in!', { className: 'custom-toast' });
+        navigate('/dashboard'); 
+      } else {
+        toast.error('Login failed. Please check your credentials.');
+      }
     } catch (error) {
       toast.error(error.message || 'Login failed');
     } finally {

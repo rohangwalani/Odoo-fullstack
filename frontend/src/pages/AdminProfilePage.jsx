@@ -58,16 +58,39 @@ export const AdminProfilePage = () => {
     { name: 'Strategic HR Management', org: 'HRCI', issueDate: '2022' }
   ];
   
-  const privateInfo = user.privateInfo || {
-    dob: 'Oct 12, 1985',
-    gender: 'Unspecified',
-    maritalStatus: 'Single',
-    nationality: 'American',
-    personalEmail: `personal.${user.email}`,
-    homeAddress: '123 Business Avenue, Suite 400\nSan Francisco, CA 94107'
-  };
+  const [privateInfo, setPrivateInfo] = useState(user?.privateInfo || {
+    dob: '',
+    gender: '',
+    maritalStatus: '',
+    nationality: '',
+    personalEmail: '',
+    homeAddress: ''
+  });
 
-  const salaryInfo = user.salaryInfo || {
+  useEffect(() => {
+    // Fetch private info when tab is active
+    if (activeTab === 'Private Info' || activeTab === 'Overview') {
+      const fetchPrivateInfo = async () => {
+        try {
+          const axiosInstance = (await import('../api/axiosInstance')).default;
+          const res = await axiosInstance.get('/profile/private');
+          setPrivateInfo({
+            dob: res.data.dateOfBirth || '',
+            gender: res.data.gender || '',
+            maritalStatus: res.data.maritalStatus || '',
+            nationality: res.data.nationality || '',
+            personalEmail: res.data.personalEmail || '',
+            homeAddress: res.data.residentialAddress || ''
+          });
+        } catch (e) {
+          console.error("Failed to load private info", e);
+        }
+      };
+      fetchPrivateInfo();
+    }
+  }, [activeTab]);
+
+  const salaryInfo = user?.salaryInfo || {
     monthlyWage: 10000,
     workingDays: 5,
     breakTime: '1 Hour',
@@ -115,55 +138,123 @@ export const AdminProfilePage = () => {
   const currentSalaryCalc = calculateSalaryDetails(salaryInfo);
 
   // Save Handlers
-  const handleSaveAbout = () => {
-    updateUser({ aboutMe: aboutMeText });
-    setIsEditAboutOpen(false);
+  const handleSaveAbout = async () => {
+    try {
+      const axiosInstance = (await import('../api/axiosInstance')).default;
+      await axiosInstance.put('/profile', { about: aboutMeText });
+      updateUser({ about: aboutMeText });
+      setIsEditAboutOpen(false);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleSaveLove = () => {
-    updateUser({ whatILove: loveText });
-    setIsEditLoveOpen(false);
+  const handleSaveLove = async () => {
+    try {
+      const axiosInstance = (await import('../api/axiosInstance')).default;
+      await axiosInstance.put('/profile', { jobDescription: loveText });
+      updateUser({ jobDescription: loveText });
+      setIsEditLoveOpen(false);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleAddSkill = () => {
+  const handleAddSkill = async () => {
     if (newSkill.trim()) {
-      updateUser({ skills: [...skills, newSkill.trim()] });
+      try {
+        const axiosInstance = (await import('../api/axiosInstance')).default;
+        await axiosInstance.post('/profile/skills', { name: newSkill.trim() });
+        // Just optimistic update or re-fetch profile
+        updateUser({ skills: [...skills, { name: newSkill.trim() }] });
+      } catch (e) {
+        console.error(e);
+      }
     }
     setNewSkill('');
     setIsAddSkillOpen(false);
   };
 
-  const handleDeleteSkill = (skillToDelete) => {
-    updateUser({ skills: skills.filter(s => s !== skillToDelete) });
+  const handleDeleteSkill = async (skillToDelete) => {
+    try {
+      if (skillToDelete.id) {
+        const axiosInstance = (await import('../api/axiosInstance')).default;
+        await axiosInstance.delete(`/profile/skills/${skillToDelete.id}`);
+      }
+      updateUser({ skills: skills.filter(s => s.name !== skillToDelete.name) });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleAddHobby = () => {
+  const handleAddHobby = async () => {
     if (newHobby.trim()) {
-      updateUser({ hobbies: [...hobbies, newHobby.trim()] });
+      try {
+        const newHobbies = [...(user?.hobbies ? user.hobbies.split(',') : []), newHobby.trim()].join(',');
+        const axiosInstance = (await import('../api/axiosInstance')).default;
+        await axiosInstance.put('/profile', { hobbies: newHobbies });
+        updateUser({ hobbies: newHobbies });
+      } catch (e) {
+        console.error(e);
+      }
     }
     setNewHobby('');
     setIsAddHobbyOpen(false);
   };
 
-  const handleDeleteHobby = (hobbyToDelete) => {
-    updateUser({ hobbies: hobbies.filter(h => h !== hobbyToDelete) });
+  const handleDeleteHobby = async (hobbyToDelete) => {
+    try {
+      const newHobbies = (user?.hobbies || '').split(',').filter(h => h.trim() !== hobbyToDelete.trim()).join(',');
+      const axiosInstance = (await import('../api/axiosInstance')).default;
+      await axiosInstance.put('/profile', { hobbies: newHobbies });
+      updateUser({ hobbies: newHobbies });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleAddCert = () => {
+  const handleAddCert = async () => {
     if (certForm.name.trim() && certForm.org.trim()) {
-      updateUser({ certifications: [...certs, certForm] });
+      try {
+        const axiosInstance = (await import('../api/axiosInstance')).default;
+        await axiosInstance.post('/profile/certifications', { name: certForm.name.trim(), issuer: certForm.org.trim() });
+        updateUser({ certifications: [...certs, { name: certForm.name.trim(), issuer: certForm.org.trim() }] });
+      } catch (e) {
+        console.error(e);
+      }
     }
     setCertForm({ name: '', org: '', issueDate: '', expiryDate: '', credentialId: '' });
     setIsAddCertOpen(false);
   };
 
-  const handleDeleteCert = (idxToDelete) => {
-    updateUser({ certifications: certs.filter((_, idx) => idx !== idxToDelete) });
+  const handleDeleteCert = async (certToDelete, idxToDelete) => {
+    try {
+      if (certToDelete.id) {
+        const axiosInstance = (await import('../api/axiosInstance')).default;
+        await axiosInstance.delete(`/profile/certifications/${certToDelete.id}`);
+      }
+      updateUser({ certifications: certs.filter((_, idx) => idx !== idxToDelete) });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleSavePrivate = () => {
-    updateUser({ privateInfo: privateForm });
-    setIsEditPrivateOpen(false);
+  const handleSavePrivate = async () => {
+    try {
+      const axiosInstance = (await import('../api/axiosInstance')).default;
+      await axiosInstance.put('/profile/private', {
+        dateOfBirth: privateForm.dob,
+        gender: privateForm.gender,
+        maritalStatus: privateForm.maritalStatus,
+        nationality: privateForm.nationality,
+        personalEmail: privateForm.personalEmail,
+        residentialAddress: privateForm.homeAddress
+      });
+      setPrivateInfo(privateForm);
+      setIsEditPrivateOpen(false);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleSaveSalary = () => {
@@ -240,17 +331,17 @@ export const AdminProfilePage = () => {
                   <div className="content-card">
                     <div className="content-card-header">
                       <h3>About Me</h3>
-                      <button className="icon-btn" onClick={() => { setAboutMeText(aboutMe); setIsEditAboutOpen(true); }}><Edit2 size={16}/></button>
+                      <button className="icon-btn" onClick={() => { setAboutMeText(user.about || aboutMe); setIsEditAboutOpen(true); }}><Edit2 size={16}/></button>
                     </div>
-                    <p style={{ whiteSpace: 'pre-line' }}>{aboutMe}</p>
+                    <p style={{ whiteSpace: 'pre-line' }}>{user.about || aboutMe}</p>
                   </div>
 
                   <div className="content-card" style={{ background: 'rgba(22, 140, 140, 0.03)', border: '1px solid rgba(22, 140, 140, 0.1)' }}>
                     <div className="content-card-header">
                       <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-hover)' }}><Heart size={18}/> What I love about my job</h3>
-                      <button className="icon-btn" onClick={() => { setLoveText(whatILove); setIsEditLoveOpen(true); }}><Edit2 size={16}/></button>
+                      <button className="icon-btn" onClick={() => { setLoveText(user.jobDescription || whatILove); setIsEditLoveOpen(true); }}><Edit2 size={16}/></button>
                     </div>
-                    <p style={{ color: 'var(--text-main)', fontStyle: 'italic', whiteSpace: 'pre-line' }}>{whatILove}</p>
+                    <p style={{ color: 'var(--text-main)', fontStyle: 'italic', whiteSpace: 'pre-line' }}>{user.jobDescription || whatILove}</p>
                   </div>
                 </div>
 
@@ -262,13 +353,13 @@ export const AdminProfilePage = () => {
                       <button className="icon-btn" onClick={() => setIsAddSkillOpen(true)}><Plus size={16}/></button>
                     </div>
                     <div className="flex-tags">
-                      {skills.map((skill, idx) => (
+                      {(user.skills || []).map((skill, idx) => (
                         <span key={idx} className="skill-badge">
-                          {skill}
+                          {skill.name}
                           <button className="tag-delete-btn" onClick={() => handleDeleteSkill(skill)}><X size={12}/></button>
                         </span>
                       ))}
-                      {skills.length === 0 && <span style={{ color: 'var(--text-muted)' }}>No skills added.</span>}
+                      {(user.skills || []).length === 0 && <span style={{ color: 'var(--text-muted)' }}>No skills added.</span>}
                     </div>
                   </div>
 
@@ -278,13 +369,13 @@ export const AdminProfilePage = () => {
                       <button className="icon-btn" onClick={() => setIsAddHobbyOpen(true)}><Plus size={16}/></button>
                     </div>
                     <div className="flex-tags">
-                      {hobbies.map((hobby, idx) => (
+                      {(user.hobbies ? user.hobbies.split(',') : []).map((hobby, idx) => (
                         <span key={idx} className="hobby-badge">
                           {hobby}
                           <button className="tag-delete-btn" onClick={() => handleDeleteHobby(hobby)}><X size={12}/></button>
                         </span>
                       ))}
-                      {hobbies.length === 0 && <span style={{ color: 'var(--text-muted)' }}>No hobbies added.</span>}
+                      {(!user.hobbies) && <span style={{ color: 'var(--text-muted)' }}>No hobbies added.</span>}
                     </div>
                   </div>
 
@@ -294,19 +385,19 @@ export const AdminProfilePage = () => {
                       <button className="icon-btn" onClick={() => setIsAddCertOpen(true)}><Plus size={16}/></button>
                     </div>
                     <ul className="cert-list">
-                      {certs.map((cert, idx) => (
+                      {(user.certifications || []).map((cert, idx) => (
                         <li key={idx}>
                           <Sparkles size={16} color="var(--accent-primary)" />
                           <div style={{ flex: 1 }}>
                             <strong>{cert.name}</strong>
                             <span>
-                              {cert.org} {cert.issueDate && `• Issued ${cert.issueDate}`} {cert.credentialId && `• ID: ${cert.credentialId}`}
+                              {cert.issuer}
                             </span>
                           </div>
-                          <button className="cert-delete-btn" onClick={() => handleDeleteCert(idx)}><Trash2 size={14}/></button>
+                          <button className="cert-delete-btn" onClick={() => handleDeleteCert(cert, idx)}><Trash2 size={14}/></button>
                         </li>
                       ))}
-                      {certs.length === 0 && <li style={{ color: 'var(--text-muted)' }}>No certifications added.</li>}
+                      {(user.certifications || []).length === 0 && <li style={{ color: 'var(--text-muted)' }}>No certifications added.</li>}
                     </ul>
                   </div>
                 </div>

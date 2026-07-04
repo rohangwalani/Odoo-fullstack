@@ -25,6 +25,7 @@ export const EmployeeProfilePage = () => {
   const [activeTab, setActiveTab] = useState('Overview');
   const [isEditSalaryOpen, setIsEditSalaryOpen] = useState(false);
   const [salaryForm, setSalaryForm] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -36,30 +37,30 @@ export const EmployeeProfilePage = () => {
   }, [location.search]);
 
   useEffect(() => {
-    let data = getEmployeeById(id);
-
-    if (!data) {
+    const fetchEmployee = async () => {
       try {
-        const storedUsers = JSON.parse(
-          localStorage.getItem('mock_db_users') || '[]'
-        );
-
-        data = storedUsers.find(
-          (u) => String(u.id) === String(id)
-        );
+        const axiosInstance = (await import('../api/axiosInstance')).default;
+        const response = await axiosInstance.get(`/employees/${id}`);
+        // Map backend employee to frontend format
+        const empData = response.data;
+        setEmployee({
+          ...empData,
+          name: `${empData.firstName} ${empData.lastName}`,
+          empId: empData.loginId,
+          avatarUrl: empData.profilePicture ? `http://localhost:8080/uploads/${empData.profilePicture}` : null,
+          status: 'present' // Mocked status since not in API
+        });
       } catch (e) {
         console.error('Failed to load employee:', e);
+        navigate('/dashboard');
+      } finally {
+        setLoading(false);
       }
-    }
-
-    if (data) {
-      setEmployee(data);
-    } else {
-      navigate('/dashboard');
-    }
+    };
+    fetchEmployee();
   }, [id, navigate]);
 
-  if (!employee) {
+  if (loading || !employee) {
     return <div style={{ padding: '2rem' }}>Loading...</div>;
   }
 

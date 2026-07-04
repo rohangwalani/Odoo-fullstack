@@ -1,55 +1,6 @@
 import { createContext, useState, useEffect } from 'react';
-import { mockEmployees } from '../data/mockEmployees';
-
-// Mock backend database helpers
-const getMockUsers = () => {
-  const users = localStorage.getItem('mock_db_users');
-  if (users) {
-    return JSON.parse(users);
-  }
-  
-  // Seed default users if local storage is empty
-  const defaultUsers = [
-    {
-      id: 'EMP-001',
-      empId: 'EMP-001',
-      name: 'Sarah Jenkins',
-      fullName: 'Sarah Jenkins',
-      email: 'admin@corehr.com',
-      password: 'admin',
-      role: 'Admin',
-      status: 'present',
-      department: 'Human Resources',
-      manager: 'CEO',
-      location: 'New York HQ',
-      joiningDate: 'Jan 10, 2022',
-      salary: '$95,000',
-      avatarUrl: 'https://i.pravatar.cc/150?u=EMP-001'
-    },
-    {
-      id: 'EMP-002',
-      empId: 'EMP-002',
-      name: 'Michael Chen',
-      fullName: 'Michael Chen',
-      email: 'employee@corehr.com',
-      password: 'password',
-      role: 'Employee',
-      status: 'present',
-      department: 'Engineering',
-      manager: 'Sarah Jenkins',
-      location: 'San Francisco',
-      joiningDate: 'Mar 15, 2023',
-      salary: '$120,000',
-      avatarUrl: 'https://i.pravatar.cc/150?u=EMP-002'
-    }
-  ];
-  localStorage.setItem('mock_db_users', JSON.stringify(defaultUsers));
-  return defaultUsers;
-};
-
-const saveMockUsers = (users) => {
-  localStorage.setItem('mock_db_users', JSON.stringify(users));
-};
+import axiosInstance from '../api/axiosInstance';
+import toast from 'react-hot-toast';
 
 export const AuthContext = createContext(null);
 
@@ -57,28 +8,40 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper to map backend profile response to frontend user state format
+  const mapBackendToUser = (profileData) => {
+    // Determine role based on what the backend might return or infer from department/designation if missing
+    // In our backend, Employee entity has a role enum: ADMIN, HR, EMPLOYEE
+    // The profile endpoint should ideally return role, but if not we can just default to Employee
+    return {
+      id: profileData.employeeId,
+      empId: profileData.employeeCode,
+      name: `${profileData.firstName} ${profileData.lastName}`,
+      fullName: `${profileData.firstName} ${profileData.lastName}`,
+      email: profileData.email,
+      role: profileData.role || 'Employee', // Backend might need to return this
+      status: 'present', // mock status for UI
+      department: profileData.department || 'General',
+      designation: profileData.designation,
+      location: 'HQ', // default
+      joiningDate: profileData.joiningDate,
+      avatarUrl: profileData.avatar ? `http://localhost:8080/uploads/${profileData.avatar}` : null,
+      ...profileData // keep raw data
+    };
+  };
+
   useEffect(() => {
-    // Check if user is logged in
     const checkAuth = async () => {
       try {
-        const token = localStorage.getItem('authToken'); // we'll use email as the token for now
+        const token = localStorage.getItem('authToken');
         if (token) {
-          const users = getMockUsers();
-          const foundUser = users.find(u => u.email === token);
-          if (foundUser) {
-            setUser(foundUser);
-          } else {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('userData');
-          }
-        } else {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('userData');
+          const response = await axiosInstance.get('/profile');
+          setUser(mapBackendToUser(response.data));
         }
       } catch (error) {
-        console.error('Failed to parse user data:', error);
+        console.error('Failed to authenticate:', error);
         localStorage.removeItem('authToken');
-        localStorage.removeItem('userData');
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -87,98 +50,58 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  const login = (token, userData) => {
+  const login = async (token, userData) => {
+    // If the caller already passes token, we just set it
+    // Usually, the caller does the POST /auth/login and gives us the token
     localStorage.setItem('authToken', token);
-    localStorage.setItem('userData', JSON.stringify(userData));
-    setUser(userData);
+    
+    // Fetch profile immediately after setting token
+    try {
+      const response = await axiosInstance.get('/profile');
+      setUser(mapBackendToUser(response.data));
+    } catch (error) {
+      console.error("Failed to load profile after login", error);
+    }
   };
 
   const logout = () => {
     localStorage.removeItem('authToken');
-    localStorage.removeItem('userData');
     setUser(null);
   };
 
-  const registerUser = (userData) => {
-    const users = getMockUsers();
-    // Check if email exists
-    if (users.find(u => u.email === userData.email)) {
-      throw new Error('Email already registered');
+  const registerUser = async (userData) => {
+    try {
+      // Create company / admin
+      const response = await axiosInstance.post('/auth/company/signup', {
+        companyName: userData.company,
+        firstName: userData.name.split(' ')[0],
+        lastName: userData.name.split(' ').slice(1).join(' ') || 'User',
+        email: userData.email,
+        phone: userData.phone,
+        password: userData.password
+      });
+      
+      return response.data;
+    } catch (error) {
+      throw error;
     }
-    
-    // Assign mock backend fields
-    const newUser = {
-      ...userData,
-      id: `EMP-${Math.floor(Math.random() * 9000) + 1000}`,
-      status: 'present',
-      department: userData.department || 'General',
-      manager: 'Not Assigned',
-      location: 'HQ',
-      joiningDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      salary: '$60,000', // Default mock salary
-      avatarUrl: `https://i.pravatar.cc/150?u=${userData.email}`, // Random consistent avatar
-    };
-
-    users.push(newUser);
-    saveMockUsers(users);
-    return newUser;
   };
 
-  const authenticateUser = (email, password) => {
-    const users = getMockUsers();
-    const found = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-    if (!found) {
-      throw new Error('Invalid email or password');
+  const authenticateUser = async (email, password) => {
+    try {
+      const response = await axiosInstance.post('/auth/login', {
+        email,
+        password
+      });
+      return response.data; // { success, token, message }
+    } catch (error) {
+      throw error;
     }
-    return found;
   };
 
   const updateUser = (updatedFields) => {
-    if (!user) throw new Error('No user logged in');
-    
-    const users = getMockUsers();
-    const userIndex = users.findIndex(u => u.id === user.id);
-    
-    if (userIndex === -1) {
-      throw new Error('User not found in database');
-    }
-    
-    const updatedUser = { ...users[userIndex], ...updatedFields };
-    users[userIndex] = updatedUser;
-    
-    saveMockUsers(users);
-    setUser(updatedUser);
-    
-    return updatedUser;
-  };
-
-  const updateEmployee = (employeeId, updatedFields) => {
-    const users = getMockUsers();
-    let index = users.findIndex(u => u.id === employeeId);
-    
-    let targetUser;
-    
-    if (index === -1) {
-      // If not in local storage yet, find in static mocks and clone it to local storage
-      const staticMock = mockEmployees.find(m => m.id === employeeId || m.empId === employeeId);
-      if (!staticMock) throw new Error('Employee not found in DB or mocks');
-      
-      targetUser = { ...staticMock, id: employeeId, ...updatedFields };
-      users.push(targetUser);
-      index = users.length - 1;
-    } else {
-      targetUser = { ...users[index], ...updatedFields };
-      users[index] = targetUser;
-    }
-    
-    saveMockUsers(users);
-    
-    // If the admin is updating their own profile via the employee page, update their session too
-    if (user && user.id === employeeId) {
-      setUser(targetUser);
-    }
-    
-    return targetUser;
+    // Optimistic update for UI
+    setUser(prev => ({ ...prev, ...updatedFields }));
   };
 
   const value = {
@@ -189,7 +112,6 @@ export const AuthProvider = ({ children }) => {
     registerUser,
     authenticateUser,
     updateUser,
-    updateEmployee,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
