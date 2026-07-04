@@ -29,6 +29,8 @@ public class User {
     private String resetToken;
     private java.time.LocalDateTime resetTokenExpiry;
 
+    private String role = "ROLE_EMPLOYEE"; // Default role
+
     // Constructors, Getters, and Setters
 
     public User() {}
@@ -85,5 +87,13 @@ public class User {
 
     public void setResetTokenExpiry(java.time.LocalDateTime resetTokenExpiry) {
         this.resetTokenExpiry = resetTokenExpiry;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 }
