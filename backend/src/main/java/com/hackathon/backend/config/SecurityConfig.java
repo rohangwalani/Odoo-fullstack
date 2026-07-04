@@ -53,6 +53,7 @@ public class SecurityConfig {
                 .requestMatchers("/uploads/**").permitAll()
                 // Employee Management endpoints (Admin only)
                 .requestMatchers("/api/employees").hasRole("ADMIN")
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/employees/**").authenticated()
                 // Require auth for everything else
                 .anyRequest().authenticated()
