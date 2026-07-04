@@ -1,11 +1,13 @@
 package com.hackathon.backend.controller;
 
-import com.hackathon.backend.model.User;
+import com.hackathon.backend.model.Employee;
+import com.hackathon.backend.repository.EmployeeRepository;
 import com.hackathon.backend.service.EmailService;
-import com.hackathon.backend.service.UserService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,11 +16,13 @@ import java.util.UUID;
 @RequestMapping("/api/password")
 public class PasswordResetController {
 
-    private final UserService userService;
+    private final EmployeeRepository employeeRepository;
+    private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
-    public PasswordResetController(UserService userService, EmailService emailService) {
-        this.userService = userService;
+    public PasswordResetController(EmployeeRepository employeeRepository, PasswordEncoder passwordEncoder, EmailService emailService) {
+        this.employeeRepository = employeeRepository;
+        this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
     }
 
@@ -29,17 +33,19 @@ public class PasswordResetController {
             return ResponseEntity.badRequest().body("Email is required");
         }
 
-        Optional<User> userOptional = userService.findByEmail(email);
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
+        Optional<Employee> employeeOptional = employeeRepository.findByEmail(email.toLowerCase());
+        if (employeeOptional.isPresent()) {
+            Employee employee = employeeOptional.get();
             String token = UUID.randomUUID().toString();
-            userService.saveResetToken(user, token);
+            employee.setResetToken(token);
+            employee.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
+            employeeRepository.save(employee);
 
             // Construct the reset link to point to your frontend
             String resetLink = "http://localhost:3000/reset-password?token=" + token;
             
             try {
-                emailService.sendPasswordResetEmail(user.getEmail(), resetLink);
+                emailService.sendPasswordResetEmail(employee.getEmail(), resetLink);
             } catch (Exception e) {
                 return ResponseEntity.internalServerError().body("Failed to send email");
             }
@@ -58,13 +64,21 @@ public class PasswordResetController {
             return ResponseEntity.badRequest().body("Token and new password are required");
         }
 
-        Optional<User> userOptional = userService.validateResetToken(token);
-        if (userOptional.isEmpty()) {
+        Optional<Employee> employeeOptional = employeeRepository.findByResetToken(token);
+        if (employeeOptional.isEmpty()) {
             return ResponseEntity.badRequest().body("Invalid or expired reset token");
         }
 
-        User user = userOptional.get();
-        userService.updatePassword(user, newPassword);
+        Employee employee = employeeOptional.get();
+        if (employee.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.badRequest().body("Invalid or expired reset token");
+        }
+
+        employee.setPassword(passwordEncoder.encode(newPassword));
+        employee.setTemporaryPassword(false);
+        employee.setResetToken(null);
+        employee.setResetTokenExpiry(null);
+        employeeRepository.save(employee);
 
         return ResponseEntity.ok("Password successfully reset");
     }

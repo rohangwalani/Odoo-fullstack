@@ -6,9 +6,9 @@ import com.hackathon.backend.exception.InvalidLeaveException;
 import com.hackathon.backend.model.LeaveRequest;
 import com.hackathon.backend.model.LeaveStatus;
 import com.hackathon.backend.model.LeaveType;
-import com.hackathon.backend.model.User;
+import com.hackathon.backend.model.Employee;
 import com.hackathon.backend.repository.LeaveRequestRepository;
-import com.hackathon.backend.repository.UserRepository;
+import com.hackathon.backend.repository.EmployeeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -31,20 +32,21 @@ public class LeaveServiceTest {
     private LeaveRequestRepository leaveRequestRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private EmployeeRepository employeeRepository;
 
     @InjectMocks
     private LeaveService leaveService;
 
-    private User user;
+    private Employee employee;
     private LeaveRequestDTO requestDTO;
 
     @BeforeEach
     void setUp() {
-        user = new User();
-        user.setId(1L);
-        user.setEmail("test@test.com");
-        user.setUsername("Test User");
+        employee = new Employee();
+        employee.setId(1L);
+        employee.setFirstName("Leave");
+        employee.setLastName("User");
+        employee.setEmail("leave@example.com");
 
         requestDTO = new LeaveRequestDTO();
         requestDTO.setLeaveType("SICK");
@@ -55,8 +57,8 @@ public class LeaveServiceTest {
 
     @Test
     void applyForLeave_Successful() {
-        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
-        when(leaveRequestRepository.findByUser(user)).thenReturn(Collections.emptyList());
+        when(employeeRepository.findByEmail("leave@example.com")).thenReturn(Optional.of(employee));
+        when(leaveRequestRepository.findByEmployee(employee)).thenReturn(Collections.emptyList());
         when(leaveRequestRepository.save(any(LeaveRequest.class))).thenAnswer(i -> {
             LeaveRequest r = i.getArgument(0);
             r.setId(10L);
@@ -64,7 +66,7 @@ public class LeaveServiceTest {
             return r;
         });
 
-        LeaveResponseDTO res = leaveService.applyForLeave("test@test.com", requestDTO);
+        LeaveResponseDTO res = leaveService.applyForLeave("leave@example.com", requestDTO);
 
         assertNotNull(res);
         assertEquals(10L, res.getId());
@@ -75,25 +77,26 @@ public class LeaveServiceTest {
 
     @Test
     void applyForLeave_PastDates_ThrowsException() {
-        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(employeeRepository.findByEmail("leave@example.com")).thenReturn(Optional.of(employee));
         requestDTO.setFromDate(LocalDate.now().minusDays(1));
 
-        assertThrows(InvalidLeaveException.class, () -> leaveService.applyForLeave("test@test.com", requestDTO));
+        assertThrows(InvalidLeaveException.class, () -> leaveService.applyForLeave("leave@example.com", requestDTO));
         verify(leaveRequestRepository, never()).save(any());
     }
 
     @Test
     void applyForLeave_OverlappingApproved_ThrowsException() {
-        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(employeeRepository.findByEmail("leave@example.com")).thenReturn(Optional.of(employee));
 
         LeaveRequest existing = new LeaveRequest();
+        existing.setEmployee(employee);
         existing.setStatus(LeaveStatus.APPROVED);
         existing.setFromDate(LocalDate.now().plusDays(1));
         existing.setToDate(LocalDate.now().plusDays(3));
 
-        when(leaveRequestRepository.findByUser(user)).thenReturn(Collections.singletonList(existing));
+        when(leaveRequestRepository.findByEmployee(employee)).thenReturn(List.of(existing));
 
-        assertThrows(InvalidLeaveException.class, () -> leaveService.applyForLeave("test@test.com", requestDTO));
+        assertThrows(InvalidLeaveException.class, () -> leaveService.applyForLeave("leave@example.com", requestDTO));
         verify(leaveRequestRepository, never()).save(any());
     }
 }

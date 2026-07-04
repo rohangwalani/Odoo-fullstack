@@ -1,32 +1,26 @@
 package com.hackathon.backend.security;
 
-import com.hackathon.backend.model.User;
-import com.hackathon.backend.repository.UserRepository;
+import com.hackathon.backend.model.Employee;
+import com.hackathon.backend.repository.EmployeeRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserRepository userRepository;
-
-    public CustomUserDetailsService(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
+    @Autowired
+    private EmployeeRepository employeeRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User Not Found with email: " + email));
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        // Find employee by email, if not found try by loginId (allows logging in with either)
+        Employee employee = employeeRepository.findByEmail(username)
+                .orElseGet(() -> employeeRepository.findByLoginId(username)
+                        .orElseThrow(() -> new UsernameNotFoundException("User Not Found with username: " + username)));
 
-        return new org.springframework.security.core.userdetails.User(
-                user.getEmail(),
-                user.getPassword(),
-                new ArrayList<>()
-        );
+        return CustomUserDetails.build(employee);
     }
 }

@@ -15,9 +15,9 @@ public class Attendance {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", nullable = false)
+    private Employee employee;
 
     private LocalDate date;
     private LocalTime checkIn;
@@ -40,8 +40,8 @@ public class Attendance {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
+    public Employee getEmployee() { return employee; }
+    public void setEmployee(Employee employee) { this.employee = employee; }
     
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate date) { this.date = date; }

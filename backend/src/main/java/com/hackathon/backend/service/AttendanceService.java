@@ -3,9 +3,9 @@ package com.hackathon.backend.service;
 import com.hackathon.backend.dto.AttendanceResponse;
 import com.hackathon.backend.model.Attendance;
 import com.hackathon.backend.model.AttendanceStatus;
-import com.hackathon.backend.model.User;
+import com.hackathon.backend.model.Employee;
 import com.hackathon.backend.repository.AttendanceRepository;
-import com.hackathon.backend.repository.UserRepository;
+import com.hackathon.backend.repository.EmployeeRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -24,25 +24,26 @@ public class AttendanceService {
     private static final Logger log = LoggerFactory.getLogger(AttendanceService.class);
 
     private final AttendanceRepository attendanceRepository;
-    private final UserRepository userRepository;
+    private final EmployeeRepository employeeRepository;
 
-    public AttendanceService(AttendanceRepository attendanceRepository, UserRepository userRepository) {
+    public AttendanceService(AttendanceRepository attendanceRepository, EmployeeRepository employeeRepository) {
         this.attendanceRepository = attendanceRepository;
-        this.userRepository = userRepository;
+        this.employeeRepository = employeeRepository;
     }
 
     public AttendanceResponse checkIn(String email) {
         log.info("Checking in user with email: {}", email);
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        Employee employee = employeeRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
         LocalDate today = LocalDate.now();
 
-        if (attendanceRepository.findByUserAndDate(user, today).isPresent()) {
+        if (attendanceRepository.findByEmployeeAndDate(employee, today).isPresent()) {
             log.warn("User {} already checked in today", email);
             throw new DuplicateAttendanceException("Already checked in today");
         }
 
         Attendance attendance = new Attendance();
-        attendance.setUser(user);
+        attendance.setEmployee(employee);
         attendance.setDate(today);
         attendance.setCheckIn(LocalTime.now());
         attendance.setStatus(AttendanceStatus.PRESENT); // Optimistic default
@@ -53,10 +54,11 @@ public class AttendanceService {
 
     public AttendanceResponse checkOut(String email) {
         log.info("Checking out user with email: {}", email);
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        Employee employee = employeeRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
         LocalDate today = LocalDate.now();
 
-        Attendance attendance = attendanceRepository.findByUserAndDate(user, today)
+        Attendance attendance = attendanceRepository.findByEmployeeAndDate(employee, today)
                 .orElseThrow(() -> new AttendanceNotFoundException("No check-in found for today"));
 
         if (attendance.getCheckOut() != null) {
@@ -79,8 +81,9 @@ public class AttendanceService {
     }
 
     public List<AttendanceResponse> getMyAttendance(String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
-        return attendanceRepository.findByUser(user).stream()
+        Employee employee = employeeRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+        return attendanceRepository.findByEmployee(employee).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -92,8 +95,8 @@ public class AttendanceService {
     }
     
     public List<AttendanceResponse> getAttendanceByEmployeeId(Long employeeId) {
-        User user = userRepository.findById(employeeId).orElseThrow(() -> new RuntimeException("User not found"));
-        return attendanceRepository.findByUser(user).stream()
+        Employee employee = employeeRepository.findById(employeeId).orElseThrow(() -> new RuntimeException("User not found"));
+        return attendanceRepository.findByEmployee(employee).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -101,8 +104,8 @@ public class AttendanceService {
     private AttendanceResponse mapToResponse(Attendance a) {
         return new AttendanceResponse(
                 a.getId(),
-                a.getUser().getId(),
-                a.getUser().getUsername(),
+                a.getEmployee().getId(),
+                a.getEmployee().getFirstName() + " " + a.getEmployee().getLastName(),
                 a.getDate(),
                 a.getCheckIn(),
                 a.getCheckOut(),

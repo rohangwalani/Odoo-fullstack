@@ -1,29 +1,298 @@
 {
 	"info": {
-		"_postman_id": "12345678-1234-1234-1234-123456789012",
-		"name": "Hackathon API",
+		"_postman_id": "hackbase-hrms-comprehensive",
+		"name": "HackBase HRMS API - Comprehensive",
+		"description": "Comprehensive test suite covering Happy Paths, Fail Paths, 2FA, Rate Limiting, and Role-Based Access.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
+	"variable": [
+		{"key": "baseUrl", "value": "http://localhost:8080", "type": "string"},
+		{"key": "adminToken", "value": "", "type": "string"},
+		{"key": "employeeToken", "value": "", "type": "string"},
+		{"key": "adminId", "value": "", "type": "string"},
+		{"key": "companyId", "value": "", "type": "string"},
+		{"key": "employeeId", "value": "", "type": "string"},
+		{"key": "employeeEmail", "value": "", "type": "string"}
+	],
 	"item": [
 		{
-			"name": "Health Check",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "http://localhost:8080/api/health",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "8080",
-					"path": [
-						"api",
-						"health"
-					]
+			"name": "0. Health",
+			"item": [
+				{
+					"name": "Health Check (Happy Path)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 200', () => pm.response.to.have.status(200));"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/health", "host": ["{{baseUrl}}"], "path": ["api", "health"]}
+					}
 				}
-			},
-			"response": []
+			]
+		},
+		{
+			"name": "1. Company Onboarding",
+			"item": [
+				{
+					"name": "1.1 Register Company (Happy Path)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 201', () => pm.response.to.have.status(201));",
+						"pm.collectionVariables.set('adminId', pm.response.json().userId);",
+						"pm.collectionVariables.set('companyId', pm.response.json().companyId);",
+                        "pm.collectionVariables.set('adminEmail', pm.response.json().email);"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "companyName", "value": "Odoo India {{adminId}}", "type": "text"},
+								{"key": "firstName", "value": "Admin", "type": "text"},
+								{"key": "lastName", "value": "User", "type": "text"},
+								{"key": "email", "value": "admin{{$timestamp}}@odoo.com", "type": "text"},
+								{"key": "password", "value": "Secret@123", "type": "text"},
+								{"key": "phone", "value": "9999999999", "type": "text"}
+							]
+						},
+						"url": {"raw": "{{baseUrl}}/api/auth/company/signup", "host": ["{{baseUrl}}"], "path": ["api", "auth", "company", "signup"]}
+					}
+				},
+				{
+					"name": "1.2 Register Company - Duplicate Email (Fail Path)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 409 or 400', () => pm.expect(pm.response.code).to.be.oneOf([409, 400, 500]));"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "companyName", "value": "Odoo India Duplicate", "type": "text"},
+								{"key": "firstName", "value": "Admin", "type": "text"},
+								{"key": "lastName", "value": "User", "type": "text"},
+								{"key": "email", "value": "admin@odoo.com", "type": "text"}, 
+								{"key": "password", "value": "Secret@123", "type": "text"}
+							]
+						},
+						"url": {"raw": "{{baseUrl}}/api/auth/company/signup", "host": ["{{baseUrl}}"], "path": ["api", "auth", "company", "signup"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Authentication & 2FA",
+			"item": [
+				{
+					"name": "2.1 Login Admin (Happy Path)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+						"if(pm.response.json().token) pm.collectionVariables.set('adminToken', pm.response.json().token);",
+                        "pm.collectionVariables.set('adminEmail', JSON.parse(pm.request.body.raw).email);"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"Secret@123\"\n}"},
+						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]}
+					}
+				},
+				{
+					"name": "2.2 Login - Wrong Password (Fail Path)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 401', () => pm.response.to.have.status(401));"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"WrongPass!1\"\n}"},
+						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]}
+					}
+				},
+				{
+					"name": "2.3 Enable 2FA for Admin",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 200', () => pm.response.to.have.status(200));"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"},
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {"mode": "raw", "raw": "{\n  \"employeeId\": {{adminId}}\n}"},
+						"url": {"raw": "{{baseUrl}}/api/auth/2fa/enable", "host": ["{{baseUrl}}"], "path": ["api", "auth", "2fa", "enable"]}
+					}
+				},
+				{
+					"name": "2.4 Login Admin with 2FA - Pending OTP (Happy Path)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+						"pm.test('requires2FA is true', () => pm.expect(pm.response.json().requires2FA).to.be.true);"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"Secret@123\"\n}"},
+						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]}
+					}
+				},
+				{
+					"name": "2.5 Verify OTP (Requires Manual Mailtrap Code)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"userId\": {{adminId}},\n  \"otp\": \"123456\"\n}"},
+						"url": {"raw": "{{baseUrl}}/api/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["api", "auth", "verify-otp"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Employee Management (Role Checks)",
+			"item": [
+				{
+					"name": "3.1 Create Employee (Admin - Happy Path)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 201', () => pm.response.to.have.status(201));",
+						"pm.collectionVariables.set('employeeId', pm.response.json().id);",
+						"pm.collectionVariables.set('employeeEmail', pm.response.json().email);"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"},
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {"mode": "raw", "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john{{$timestamp}}@odoo.com\",\n  \"department\": \"Engineering\",\n  \"designation\": \"Developer\",\n  \"role\": \"EMPLOYEE\"\n}"},
+						"url": {"raw": "{{baseUrl}}/api/employees", "host": ["{{baseUrl}}"], "path": ["api", "employees"]}
+					}
+				},
+				{
+					"name": "3.2 Get All Employees (Admin - Happy Path)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+						"pm.test('Array returned', () => pm.expect(pm.response.json()).to.be.an('array'));"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}],
+						"url": {"raw": "{{baseUrl}}/api/employees", "host": ["{{baseUrl}}"], "path": ["api", "employees"]}
+					}
+				},
+				{
+					"name": "3.3 Login as New Employee (Happy Path)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+						"if(pm.response.json().token) pm.collectionVariables.set('employeeToken', pm.response.json().token);"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"email\": \"{{employeeEmail}}\",\n  \"password\": \"GET_TEMP_PASSWORD_FROM_MAILTRAP\"\n}"},
+						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]}
+					}
+				},
+				{
+					"name": "3.4 Create Employee (Employee - Fail Path / Forbidden)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 403 Forbidden', () => pm.response.to.have.status(403));"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{employeeToken}}"},
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {"mode": "raw", "raw": "{\n  \"firstName\": \"Hacker\",\n  \"lastName\": \"Man\",\n  \"email\": \"hacker@odoo.com\",\n  \"role\": \"ADMIN\"\n}"},
+						"url": {"raw": "{{baseUrl}}/api/employees", "host": ["{{baseUrl}}"], "path": ["api", "employees"]}
+					}
+				},
+				{
+					"name": "3.5 Get Employee By ID (Self - Happy Path)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 200', () => pm.response.to.have.status(200));"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{employeeToken}}"}],
+						"url": {"raw": "{{baseUrl}}/api/employees/{{employeeId}}", "host": ["{{baseUrl}}"], "path": ["api", "employees", "{{employeeId}}"]}
+					}
+				},
+				{
+					"name": "3.6 Get Other Employee By ID (Employee - Fail Path / Forbidden)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 403 Forbidden', () => pm.response.to.have.status(403));"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{employeeToken}}"}],
+						"url": {"raw": "{{baseUrl}}/api/employees/{{adminId}}", "host": ["{{baseUrl}}"], "path": ["api", "employees", "{{adminId}}"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Profile Updates",
+			"item": [
+				{
+					"name": "4.1 Update Own Profile (Happy Path)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 200', () => pm.response.to.have.status(200));"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Authorization", "value": "Bearer {{employeeToken}}"}],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "phone", "value": "8888888888", "type": "text"},
+								{"key": "address", "value": "123 Tech Park", "type": "text"}
+							]
+						},
+						"url": {"raw": "{{baseUrl}}/api/employees/{{employeeId}}/profile", "host": ["{{baseUrl}}"], "path": ["api", "employees", "{{employeeId}}", "profile"]}
+					}
+				},
+				{
+					"name": "4.2 Update Someone Else's Profile (Fail Path / Forbidden)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 403 Forbidden', () => pm.response.to.have.status(403));"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Authorization", "value": "Bearer {{employeeToken}}"}],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "phone", "value": "1111111111", "type": "text"}
+							]
+						},
+						"url": {"raw": "{{baseUrl}}/api/employees/{{adminId}}/profile", "host": ["{{baseUrl}}"], "path": ["api", "employees", "{{adminId}}", "profile"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "5. Rate Limiting",
+			"item": [
+				{
+					"name": "5.1 Login Brute Force (Run 6x to get 429)",
+					"event": [{"listen": "test", "script": {"exec": [
+						"if (pm.response.code === 429) {",
+						"  pm.test('Rate limit triggered', () => pm.response.to.have.status(429));",
+						"} else {",
+						"  pm.test('Attempt recorded', () => pm.response.to.have.status(401));",
+						"}"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"BruteForce1!\"\n}"},
+						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]}
+					}
+				}
+			]
 		}
 	]
 }

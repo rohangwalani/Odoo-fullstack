@@ -3,9 +3,9 @@ package com.hackathon.backend.service;
 import com.hackathon.backend.dto.AttendanceResponse;
 import com.hackathon.backend.exception.DuplicateAttendanceException;
 import com.hackathon.backend.model.Attendance;
-import com.hackathon.backend.model.User;
+import com.hackathon.backend.model.Employee;
 import com.hackathon.backend.repository.AttendanceRepository;
-import com.hackathon.backend.repository.UserRepository;
+import com.hackathon.backend.repository.EmployeeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,32 +28,33 @@ public class AttendanceServiceTest {
     private AttendanceRepository attendanceRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private EmployeeRepository employeeRepository;
 
     @InjectMocks
     private AttendanceService attendanceService;
 
-    private User user;
+    private Employee employee;
 
     @BeforeEach
     void setUp() {
-        user = new User();
-        user.setId(1L);
-        user.setEmail("test@test.com");
-        user.setUsername("Test User");
+        employee = new Employee();
+        employee.setId(1L);
+        employee.setFirstName("Test");
+        employee.setLastName("User");
+        employee.setEmail("test@example.com");
     }
 
     @Test
     void checkIn_Successful() {
-        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
-        when(attendanceRepository.findByUserAndDate(eq(user), any(LocalDate.class))).thenReturn(Optional.empty());
+        when(employeeRepository.findByEmail("test@example.com")).thenReturn(Optional.of(employee));
+        when(attendanceRepository.findByEmployeeAndDate(eq(employee), any(LocalDate.class))).thenReturn(Optional.empty());
         when(attendanceRepository.save(any(Attendance.class))).thenAnswer(i -> {
             Attendance a = i.getArgument(0);
             a.setId(100L);
             return a;
         });
 
-        AttendanceResponse res = attendanceService.checkIn("test@test.com");
+        AttendanceResponse res = attendanceService.checkIn("test@example.com");
 
         assertNotNull(res);
         assertEquals(100L, res.getId());
@@ -64,8 +65,8 @@ public class AttendanceServiceTest {
 
     @Test
     void checkIn_Duplicate_ThrowsException() {
-        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
-        when(attendanceRepository.findByUserAndDate(eq(user), any(LocalDate.class)))
+        when(employeeRepository.findByEmail("test@test.com")).thenReturn(Optional.of(employee));
+        when(attendanceRepository.findByEmployeeAndDate(eq(employee), any(LocalDate.class)))
                 .thenReturn(Optional.of(new Attendance()));
 
         assertThrows(DuplicateAttendanceException.class, () -> attendanceService.checkIn("test@test.com"));
@@ -74,7 +75,7 @@ public class AttendanceServiceTest {
 
     @Test
     void checkIn_UserNotFound_ThrowsException() {
-        when(userRepository.findByEmail("notfound@test.com")).thenReturn(Optional.empty());
+        when(employeeRepository.findByEmail("notfound@test.com")).thenReturn(Optional.empty());
         assertThrows(UsernameNotFoundException.class, () -> attendanceService.checkIn("notfound@test.com"));
     }
 }

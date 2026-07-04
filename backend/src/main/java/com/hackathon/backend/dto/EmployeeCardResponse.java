@@ -2,7 +2,7 @@ package com.hackathon.backend.dto;
 
 public class EmployeeCardResponse {
     private Long id;
-    private String name;
+    private String employeeName;
     private String employeeId;
     private String department;
     private String profilePicture;
@@ -10,9 +10,9 @@ public class EmployeeCardResponse {
 
     public EmployeeCardResponse() {}
 
-    public EmployeeCardResponse(Long id, String name, String employeeId, String department, String profilePicture, String attendanceStatus) {
+    public EmployeeCardResponse(Long id, String employeeName, String employeeId, String department, String profilePicture, String attendanceStatus) {
         this.id = id;
-        this.name = name;
+        this.employeeName = employeeName;
         this.employeeId = employeeId;
         this.department = department;
         this.profilePicture = profilePicture;
@@ -21,8 +21,8 @@ public class EmployeeCardResponse {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public String getEmployeeName() { return employeeName; }
+    public void setEmployeeName(String employeeName) { this.employeeName = employeeName; }
     public String getEmployeeId() { return employeeId; }
     public void setEmployeeId(String employeeId) { this.employeeId = employeeId; }
     public String getDepartment() { return department; }

@@ -11,7 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @ControllerAdvice
-public class GlobalExceptionHandler {
+public class HRExceptionHandler {
 
     @ExceptionHandler(DuplicateAttendanceException.class)
     public ResponseEntity<Map<String, String>> handleDuplicateAttendance(DuplicateAttendanceException ex) {
