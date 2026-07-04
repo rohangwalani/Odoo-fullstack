@@ -5,6 +5,7 @@ import com.hackathon.backend.dto.PayrollResponse;
 import com.hackathon.backend.service.PayrollService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,11 +30,13 @@ public class PayrollController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<PayrollResponse>> getAllPayrolls() {
         return ResponseEntity.ok(payrollService.getAllPayrolls());
     }
 
     @PutMapping("/{employeeId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PayrollResponse> updatePayroll(@PathVariable Long employeeId, @RequestBody PayrollRequestDTO dto) {
         return ResponseEntity.ok(payrollService.updatePayroll(employeeId, dto));
     }
