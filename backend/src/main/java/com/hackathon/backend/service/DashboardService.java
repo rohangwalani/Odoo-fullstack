@@ -5,11 +5,11 @@ import com.hackathon.backend.dto.EmployeeDashboardResponse;
 import com.hackathon.backend.model.AttendanceStatus;
 import com.hackathon.backend.model.LeaveStatus;
 import com.hackathon.backend.model.Payroll;
-import com.hackathon.backend.model.User;
+import com.hackathon.backend.model.Employee;
 import com.hackathon.backend.repository.AttendanceRepository;
 import com.hackathon.backend.repository.LeaveRequestRepository;
 import com.hackathon.backend.repository.PayrollRepository;
-import com.hackathon.backend.repository.UserRepository;
+import com.hackathon.backend.repository.EmployeeRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -18,17 +18,17 @@ import java.util.stream.Collectors;
 @Service
 public class DashboardService {
 
-    private final UserRepository userRepository;
+    private final EmployeeRepository employeeRepository;
     private final AttendanceRepository attendanceRepository;
     private final LeaveRequestRepository leaveRequestRepository;
     private final PayrollRepository payrollRepository;
     private final AttendanceService attendanceService;
     private final LeaveService leaveService;
 
-    public DashboardService(UserRepository userRepository, AttendanceRepository attendanceRepository, 
+    public DashboardService(EmployeeRepository employeeRepository, AttendanceRepository attendanceRepository, 
                             LeaveRequestRepository leaveRequestRepository, PayrollRepository payrollRepository,
                             AttendanceService attendanceService, LeaveService leaveService) {
-        this.userRepository = userRepository;
+        this.employeeRepository = employeeRepository;
         this.attendanceRepository = attendanceRepository;
         this.leaveRequestRepository = leaveRequestRepository;
         this.payrollRepository = payrollRepository;
@@ -37,26 +37,26 @@ public class DashboardService {
     }
 
     public EmployeeDashboardResponse getEmployeeDashboard(String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+        Employee employee = employeeRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("Employee not found"));
         EmployeeDashboardResponse response = new EmployeeDashboardResponse();
         
-        response.setEmployeeName(user.getUsername());
-        response.setRole(user.getRole());
+        response.setEmployeeName(employee.getFirstName() + " " + employee.getLastName());
+        response.setRole(employee.getRole().name());
         
         // Attendance stats
-        var attendances = attendanceRepository.findByUser(user);
+        var attendances = attendanceRepository.findByEmployee(employee);
         response.setPresentDays(attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.PRESENT).count());
         response.setAbsentDays(attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.ABSENT).count());
         response.setRecentAttendance(attendanceService.getMyAttendance(email)); // reusing logic
         
         // Leave stats
-        var leaves = leaveRequestRepository.findByUser(user);
+        var leaves = leaveRequestRepository.findByEmployee(employee);
         response.setPendingLeaves(leaves.stream().filter(l -> l.getStatus() == LeaveStatus.PENDING).count());
         response.setApprovedLeaves(leaves.stream().filter(l -> l.getStatus() == LeaveStatus.APPROVED).count());
         response.setRecentLeaves(leaveService.getMyLeaves(email));
         
         // Payroll stats
-        payrollRepository.findByUser(user).ifPresent(p -> {
+        payrollRepository.findByEmployee(employee).ifPresent(p -> {
             response.setBasicSalary(p.getBasicSalary());
             response.setNetSalary(p.getNetSalary());
         });
@@ -67,7 +67,7 @@ public class DashboardService {
     public AdminDashboardResponse getAdminDashboard() {
         AdminDashboardResponse response = new AdminDashboardResponse();
         
-        response.setTotalEmployees(userRepository.count());
+        response.setTotalEmployees(employeeRepository.count());
         
         LocalDate today = LocalDate.now();
         var todaysAttendance = attendanceRepository.findByDate(today);

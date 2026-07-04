@@ -5,9 +5,9 @@ import com.hackathon.backend.dto.LeaveResponseDTO;
 import com.hackathon.backend.model.LeaveRequest;
 import com.hackathon.backend.model.LeaveStatus;
 import com.hackathon.backend.model.LeaveType;
-import com.hackathon.backend.model.User;
+import com.hackathon.backend.model.Employee;
 import com.hackathon.backend.repository.LeaveRequestRepository;
-import com.hackathon.backend.repository.UserRepository;
+import com.hackathon.backend.repository.EmployeeRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,18 +17,18 @@ import java.util.stream.Collectors;
 public class LeaveService {
 
     private final LeaveRequestRepository leaveRequestRepository;
-    private final UserRepository userRepository;
+    private final EmployeeRepository employeeRepository;
 
-    public LeaveService(LeaveRequestRepository leaveRequestRepository, UserRepository userRepository) {
+    public LeaveService(LeaveRequestRepository leaveRequestRepository, EmployeeRepository employeeRepository) {
         this.leaveRequestRepository = leaveRequestRepository;
-        this.userRepository = userRepository;
+        this.employeeRepository = employeeRepository;
     }
 
     public LeaveResponseDTO applyForLeave(String email, LeaveRequestDTO dto) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+        Employee employee = employeeRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("Employee not found"));
         
         LeaveRequest request = new LeaveRequest();
-        request.setUser(user);
+        request.setEmployee(employee);
         request.setLeaveType(LeaveType.valueOf(dto.getLeaveType().toUpperCase()));
         request.setFromDate(dto.getFromDate());
         request.setToDate(dto.getToDate());
@@ -39,8 +39,8 @@ public class LeaveService {
     }
 
     public List<LeaveResponseDTO> getMyLeaves(String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
-        return leaveRequestRepository.findByUser(user).stream()
+        Employee employee = employeeRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("Employee not found"));
+        return leaveRequestRepository.findByEmployee(employee).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -68,8 +68,8 @@ public class LeaveService {
     private LeaveResponseDTO mapToResponse(LeaveRequest l) {
         return new LeaveResponseDTO(
                 l.getId(),
-                l.getUser().getId(),
-                l.getUser().getUsername(),
+                l.getEmployee().getId(),
+                l.getEmployee().getFirstName() + " " + l.getEmployee().getLastName(),
                 l.getLeaveType().name(),
                 l.getFromDate(),
                 l.getToDate(),

@@ -11,8 +11,8 @@ public class Payroll {
     private Long id;
 
     @OneToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "employee_id", nullable = false)
+    private Employee employee;
 
     private Double basicSalary;
     private Double allowances;
@@ -24,8 +24,8 @@ public class Payroll {
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
+    public Employee getEmployee() { return employee; }
+    public void setEmployee(Employee employee) { this.employee = employee; }
     public Double getBasicSalary() { return basicSalary; }
     public void setBasicSalary(Double basicSalary) { this.basicSalary = basicSalary; }
     public Double getAllowances() { return allowances; }
