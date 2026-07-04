@@ -26,6 +26,23 @@ export const EmployeeProfilePage = () => {
   const [isEditSalaryOpen, setIsEditSalaryOpen] = useState(false);
   const [salaryForm, setSalaryForm] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [salaryData, setSalaryData] = useState(null);
+
+  useEffect(() => {
+    if (activeTab === 'Salary Info' || activeTab === 'Overview') {
+      const fetchSalaryInfo = async () => {
+        if (!id) return;
+        try {
+          const axiosInstance = (await import('../api/axiosInstance')).default;
+          const res = await axiosInstance.get(`/salary/${id}`);
+          setSalaryData(res.data);
+        } catch (e) {
+          console.error("Failed to load salary info", e);
+        }
+      };
+      fetchSalaryInfo();
+    }
+  }, [activeTab, id]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -75,84 +92,6 @@ export const EmployeeProfilePage = () => {
       .toUpperCase();
   };
 
-  const salaryInfo = employee.salaryInfo || {
-    monthlyWage: 10000,
-    workingDays: 5,
-    breakTime: '1 Hour',
-    components: {
-      basic: 50,
-      hra: 20,
-      standardAllowance: 10,
-      performanceBonus: 10,
-      lta: 5,
-      fixedAllowance: 5
-    },
-    pf: {
-      employee: 12,
-      employer: 12
-    },
-    tax: {
-      professional: 200
-    }
-  };
-
-  const calculateSalaryDetails = (info) => {
-    const base = Number(info.monthlyWage) || 0;
-
-    const calc = (pct) =>
-      (base * (Number(pct) / 100)).toFixed(2);
-
-    const earnings = {
-      basic: {
-        pct: info.components.basic,
-        amt: calc(info.components.basic)
-      },
-      hra: {
-        pct: info.components.hra,
-        amt: calc(info.components.hra)
-      },
-      standardAllowance: {
-        pct: info.components.standardAllowance,
-        amt: calc(info.components.standardAllowance)
-      },
-      performanceBonus: {
-        pct: info.components.performanceBonus,
-        amt: calc(info.components.performanceBonus)
-      },
-      lta: {
-        pct: info.components.lta,
-        amt: calc(info.components.lta)
-      },
-      fixedAllowance: {
-        pct: info.components.fixedAllowance,
-        amt: calc(info.components.fixedAllowance)
-      }
-    };
-
-    const deductions = {
-      pfEmployee: {
-        pct: info.pf.employee,
-        amt: calc(info.pf.employee)
-      },
-      pfEmployer: {
-        pct: info.pf.employer,
-        amt: calc(info.pf.employer)
-      },
-      profTax: {
-        amt: Number(info.tax.professional || 0).toFixed(2)
-      }
-    };
-
-    return {
-      earnings,
-      deductions,
-      yearlyWage: (base * 12).toLocaleString('en-IN'),
-      base: base.toLocaleString('en-IN')
-    };
-  };
-
-  const currentSalaryCalc = calculateSalaryDetails(salaryInfo);
-
   const canViewPrivateInfo =
     user?.role === 'Admin' ||
     user?.role === 'HR Officer' ||
@@ -163,23 +102,22 @@ export const EmployeeProfilePage = () => {
     user?.role === 'HR Officer' ||
     String(user?.id) === String(employee.id);
 
-  const handleSaveSalary = () => {
+  const handleSaveSalary = async () => {
     if (salaryForm) {
-      const updatedEmp = updateEmployee?.(employee.id, {
-        salaryInfo: salaryForm
-      });
-
-      if (updatedEmp) {
-        setEmployee(updatedEmp);
-      } else {
-        setEmployee((prev) => ({
-          ...prev,
-          salaryInfo: salaryForm
-        }));
+      try {
+        const axiosInstance = (await import('../api/axiosInstance')).default;
+        const res = await axiosInstance.put(`/salary/${employee.id}`, {
+          monthlySalary: salaryForm.monthlySalary,
+          professionalTax: salaryForm.professionalTax,
+          workingDays: salaryForm.workingDays,
+          workingHours: salaryForm.workingHours
+        });
+        setSalaryData(res.data);
+        setIsEditSalaryOpen(false);
+      } catch (e) {
+        console.error("Failed to update salary", e);
       }
     }
-
-    setIsEditSalaryOpen(false);
   };
 
   return (
@@ -633,9 +571,7 @@ export const EmployeeProfilePage = () => {
                             className="btn btn-outline btn-sm"
                             onClick={() => {
                               setSalaryForm(
-                                JSON.parse(
-                                  JSON.stringify(salaryInfo)
-                                )
+                                salaryData || { monthlySalary: 10000, workingDays: 5, workingHours: 8, professionalTax: 200 }
                               );
                               setIsEditSalaryOpen(true);
                             }}
@@ -680,7 +616,7 @@ export const EmployeeProfilePage = () => {
                             marginBottom: '0.25rem'
                           }}
                         >
-                          ₹{currentSalaryCalc.base}
+                          ₹{salaryData?.monthlySalary || 0}
                         </span>
 
                         <span
@@ -690,7 +626,7 @@ export const EmployeeProfilePage = () => {
                             color: 'var(--text-muted)'
                           }}
                         >
-                          Working Days: {salaryInfo.workingDays}{' '}
+                          Working Days: {salaryData?.workingDays || 5}{' '}
                           days / week
                         </span>
                       </div>
@@ -718,7 +654,7 @@ export const EmployeeProfilePage = () => {
                             marginBottom: '0.25rem'
                           }}
                         >
-                          ₹{currentSalaryCalc.yearlyWage}
+                          ₹{salaryData?.yearlySalary || 0}
                         </span>
 
                         <span
@@ -728,7 +664,7 @@ export const EmployeeProfilePage = () => {
                             color: 'var(--text-muted)'
                           }}
                         >
-                          Break Time: {salaryInfo.breakTime}
+                          Working Hours: {salaryData?.workingHours || 8} hrs / day
                         </span>
                       </div>
                     </div>
@@ -759,85 +695,55 @@ export const EmployeeProfilePage = () => {
                         <div className="admin-detail-grid">
                           <div className="detail-box">
                             <span className="box-label">
-                              Basic Salary (
-                              {currentSalaryCalc.earnings.basic.pct}%)
+                              Basic Salary (50%)
                             </span>
                             <span className="box-value">
-                              ₹{currentSalaryCalc.earnings.basic.amt}
+                              ₹{salaryData?.basicSalary || 0}
                             </span>
                           </div>
 
                           <div className="detail-box">
                             <span className="box-label">
-                              House Rent Allowance (
-                              {currentSalaryCalc.earnings.hra.pct}%)
+                              House Rent Allowance (50% of Basic)
                             </span>
                             <span className="box-value">
-                              ₹{currentSalaryCalc.earnings.hra.amt}
+                              ₹{salaryData?.houseRentAllowance || 0}
                             </span>
                           </div>
 
                           <div className="detail-box">
                             <span className="box-label">
-                              Standard Allowance (
-                              {
-                                currentSalaryCalc.earnings
-                                  .standardAllowance.pct
-                              }
-                              %)
+                              Standard Allowance
                             </span>
                             <span className="box-value">
-                              ₹
-                              {
-                                currentSalaryCalc.earnings
-                                  .standardAllowance.amt
-                              }
+                              ₹{salaryData?.standardAllowance || 0}
                             </span>
                           </div>
 
                           <div className="detail-box">
                             <span className="box-label">
-                              Performance Bonus (
-                              {
-                                currentSalaryCalc.earnings
-                                  .performanceBonus.pct
-                              }
-                              %)
+                              Performance Bonus (8.33%)
                             </span>
                             <span className="box-value">
-                              ₹
-                              {
-                                currentSalaryCalc.earnings
-                                  .performanceBonus.amt
-                              }
+                              ₹{salaryData?.performanceBonus || 0}
                             </span>
                           </div>
 
                           <div className="detail-box">
                             <span className="box-label">
-                              Leave Travel Allowance (
-                              {currentSalaryCalc.earnings.lta.pct}%)
+                              Leave Travel Allowance (8.33%)
                             </span>
                             <span className="box-value">
-                              ₹{currentSalaryCalc.earnings.lta.amt}
+                              ₹{salaryData?.leaveTravelAllowance || 0}
                             </span>
                           </div>
 
                           <div className="detail-box">
                             <span className="box-label">
-                              Fixed Allowance (
-                              {
-                                currentSalaryCalc.earnings
-                                  .fixedAllowance.pct
-                              }
-                              %)
+                              Fixed Allowance
                             </span>
                             <span className="box-value">
-                              ₹
-                              {
-                                currentSalaryCalc.earnings
-                                  .fixedAllowance.amt
-                              }
+                              ₹{salaryData?.fixedAllowance || 0}
                             </span>
                           </div>
                         </div>
@@ -873,37 +779,19 @@ export const EmployeeProfilePage = () => {
                           >
                             <div className="detail-box">
                               <span className="box-label">
-                                Employee PF (
-                                {
-                                  currentSalaryCalc.deductions
-                                    .pfEmployee.pct
-                                }
-                                %)
+                                Employee PF ({salaryData?.pfPercentage || 12}%)
                               </span>
                               <span className="box-value text-danger">
-                                -₹
-                                {
-                                  currentSalaryCalc.deductions
-                                    .pfEmployee.amt
-                                }
+                                -₹{salaryData?.pfEmployee || 0}
                               </span>
                             </div>
 
                             <div className="detail-box">
                               <span className="box-label">
-                                Employer PF (
-                                {
-                                  currentSalaryCalc.deductions
-                                    .pfEmployer.pct
-                                }
-                                %)
+                                Employer PF ({salaryData?.pfPercentage || 12}%)
                               </span>
                               <span className="box-value">
-                                ₹
-                                {
-                                  currentSalaryCalc.deductions
-                                    .pfEmployer.amt
-                                }
+                                ₹{salaryData?.pfEmployer || 0}
                               </span>
                             </div>
                           </div>
@@ -934,11 +822,16 @@ export const EmployeeProfilePage = () => {
                                 Professional Tax (Fixed)
                               </span>
                               <span className="box-value text-danger">
-                                -₹
-                                {
-                                  currentSalaryCalc.deductions
-                                    .profTax.amt
-                                }
+                                -₹{salaryData?.professionalTax || 0}
+                              </span>
+                            </div>
+
+                            <div className="detail-box">
+                              <span className="box-label">
+                                Net Salary
+                              </span>
+                              <span className="box-value" style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>
+                                ₹{salaryData?.netSalary || 0}
                               </span>
                             </div>
                           </div>
@@ -985,11 +878,11 @@ export const EmployeeProfilePage = () => {
                   type="number"
                   className="input-field"
                   style={{ padding: '0 1rem' }}
-                  value={salaryForm.monthlyWage}
+                  value={salaryForm.monthlySalary}
                   onChange={(e) =>
                     setSalaryForm({
                       ...salaryForm,
-                      monthlyWage: e.target.value
+                      monthlySalary: Number(e.target.value)
                     })
                   }
                 />
@@ -1007,7 +900,7 @@ export const EmployeeProfilePage = () => {
                   onChange={(e) =>
                     setSalaryForm({
                       ...salaryForm,
-                      workingDays: e.target.value
+                      workingDays: Number(e.target.value)
                     })
                   }
                 />
@@ -1015,24 +908,23 @@ export const EmployeeProfilePage = () => {
 
               <div className="field-group">
                 <label className="field-label">
-                  Break Time
+                  Working Hours (per day)
                 </label>
                 <input
-                  type="text"
+                  type="number"
                   className="input-field"
                   style={{ padding: '0 1rem' }}
-                  value={salaryForm.breakTime}
+                  value={salaryForm.workingHours}
                   onChange={(e) =>
                     setSalaryForm({
                       ...salaryForm,
-                      breakTime: e.target.value
+                      workingHours: Number(e.target.value)
                     })
                   }
                 />
               </div>
             </div>
 
-            {/* Component Percentages */}
             <h4
               style={{
                 margin: '0.5rem 0 0',
@@ -1042,211 +934,16 @@ export const EmployeeProfilePage = () => {
                 paddingBottom: '0.5rem'
               }}
             >
-              Component Percentages (%)
+              Taxes
             </h4>
 
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
+                gridTemplateColumns: '1fr',
                 gap: '1rem'
               }}
             >
-              <div className="field-group">
-                <label className="field-label">
-                  Basic Salary %
-                </label>
-                <input
-                  type="number"
-                  className="input-field"
-                  style={{ padding: '0 1rem' }}
-                  value={salaryForm.components.basic}
-                  onChange={(e) =>
-                    setSalaryForm({
-                      ...salaryForm,
-                      components: {
-                        ...salaryForm.components,
-                        basic: e.target.value
-                      }
-                    })
-                  }
-                />
-              </div>
-
-              <div className="field-group">
-                <label className="field-label">
-                  HRA %
-                </label>
-                <input
-                  type="number"
-                  className="input-field"
-                  style={{ padding: '0 1rem' }}
-                  value={salaryForm.components.hra}
-                  onChange={(e) =>
-                    setSalaryForm({
-                      ...salaryForm,
-                      components: {
-                        ...salaryForm.components,
-                        hra: e.target.value
-                      }
-                    })
-                  }
-                />
-              </div>
-
-              <div className="field-group">
-                <label className="field-label">
-                  Standard Allowance %
-                </label>
-                <input
-                  type="number"
-                  className="input-field"
-                  style={{ padding: '0 1rem' }}
-                  value={
-                    salaryForm.components.standardAllowance
-                  }
-                  onChange={(e) =>
-                    setSalaryForm({
-                      ...salaryForm,
-                      components: {
-                        ...salaryForm.components,
-                        standardAllowance: e.target.value
-                      }
-                    })
-                  }
-                />
-              </div>
-
-              <div className="field-group">
-                <label className="field-label">
-                  Performance Bonus %
-                </label>
-                <input
-                  type="number"
-                  className="input-field"
-                  style={{ padding: '0 1rem' }}
-                  value={
-                    salaryForm.components.performanceBonus
-                  }
-                  onChange={(e) =>
-                    setSalaryForm({
-                      ...salaryForm,
-                      components: {
-                        ...salaryForm.components,
-                        performanceBonus: e.target.value
-                      }
-                    })
-                  }
-                />
-              </div>
-
-              <div className="field-group">
-                <label className="field-label">
-                  LTA %
-                </label>
-                <input
-                  type="number"
-                  className="input-field"
-                  style={{ padding: '0 1rem' }}
-                  value={salaryForm.components.lta}
-                  onChange={(e) =>
-                    setSalaryForm({
-                      ...salaryForm,
-                      components: {
-                        ...salaryForm.components,
-                        lta: e.target.value
-                      }
-                    })
-                  }
-                />
-              </div>
-
-              <div className="field-group">
-                <label className="field-label">
-                  Fixed Allowance %
-                </label>
-                <input
-                  type="number"
-                  className="input-field"
-                  style={{ padding: '0 1rem' }}
-                  value={
-                    salaryForm.components.fixedAllowance
-                  }
-                  onChange={(e) =>
-                    setSalaryForm({
-                      ...salaryForm,
-                      components: {
-                        ...salaryForm.components,
-                        fixedAllowance: e.target.value
-                      }
-                    })
-                  }
-                />
-              </div>
-            </div>
-
-            {/* PF and Tax */}
-            <h4
-              style={{
-                margin: '0.5rem 0 0',
-                fontSize: '1rem',
-                borderBottom:
-                  '1px solid rgba(0,0,0,0.05)',
-                paddingBottom: '0.5rem'
-              }}
-            >
-              PF & Taxes
-            </h4>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '1rem'
-              }}
-            >
-              <div className="field-group">
-                <label className="field-label">
-                  Employee PF %
-                </label>
-                <input
-                  type="number"
-                  className="input-field"
-                  style={{ padding: '0 1rem' }}
-                  value={salaryForm.pf.employee}
-                  onChange={(e) =>
-                    setSalaryForm({
-                      ...salaryForm,
-                      pf: {
-                        ...salaryForm.pf,
-                        employee: e.target.value
-                      }
-                    })
-                  }
-                />
-              </div>
-
-              <div className="field-group">
-                <label className="field-label">
-                  Employer PF %
-                </label>
-                <input
-                  type="number"
-                  className="input-field"
-                  style={{ padding: '0 1rem' }}
-                  value={salaryForm.pf.employer}
-                  onChange={(e) =>
-                    setSalaryForm({
-                      ...salaryForm,
-                      pf: {
-                        ...salaryForm.pf,
-                        employer: e.target.value
-                      }
-                    })
-                  }
-                />
-              </div>
-
               <div
                 className="field-group"
                 style={{ gridColumn: '1 / -1' }}
@@ -1258,14 +955,11 @@ export const EmployeeProfilePage = () => {
                   type="number"
                   className="input-field"
                   style={{ padding: '0 1rem' }}
-                  value={salaryForm.tax.professional}
+                  value={salaryForm.professionalTax}
                   onChange={(e) =>
                     setSalaryForm({
                       ...salaryForm,
-                      tax: {
-                        ...salaryForm.tax,
-                        professional: e.target.value
-                      }
+                      professionalTax: Number(e.target.value)
                     })
                   }
                 />

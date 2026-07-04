@@ -90,52 +90,22 @@ export const AdminProfilePage = () => {
     }
   }, [activeTab]);
 
-  const salaryInfo = user?.salaryInfo || {
-    monthlyWage: 10000,
-    workingDays: 5,
-    breakTime: '1 Hour',
-    components: {
-      basic: 50,
-      hra: 20,
-      standardAllowance: 10,
-      performanceBonus: 10,
-      lta: 5,
-      fixedAllowance: 5
-    },
-    pf: {
-      employee: 12,
-      employer: 12
-    },
-    tax: {
-      professional: 200
+  const [salaryData, setSalaryData] = useState(null);
+
+  useEffect(() => {
+    if (activeTab === 'Salary Info' || activeTab === 'Overview') {
+      const fetchSalaryInfo = async () => {
+        try {
+          const axiosInstance = (await import('../api/axiosInstance')).default;
+          const res = await axiosInstance.get(`/salary/${user.id}`);
+          setSalaryData(res.data);
+        } catch (e) {
+          console.error("Failed to load salary info", e);
+        }
+      };
+      fetchSalaryInfo();
     }
-  };
-
-  const calculateSalaryDetails = (info) => {
-    const base = Number(info.monthlyWage) || 0;
-    const calc = (pct) => (base * (Number(pct) / 100)).toFixed(2);
-    
-    const earnings = {
-      basic: { pct: info.components.basic, amt: calc(info.components.basic) },
-      hra: { pct: info.components.hra, amt: calc(info.components.hra) },
-      standardAllowance: { pct: info.components.standardAllowance, amt: calc(info.components.standardAllowance) },
-      performanceBonus: { pct: info.components.performanceBonus, amt: calc(info.components.performanceBonus) },
-      lta: { pct: info.components.lta, amt: calc(info.components.lta) },
-      fixedAllowance: { pct: info.components.fixedAllowance, amt: calc(info.components.fixedAllowance) },
-    };
-    
-    const deductions = {
-      pfEmployee: { pct: info.pf.employee, amt: calc(info.pf.employee) },
-      pfEmployer: { pct: info.pf.employer, amt: calc(info.pf.employer) },
-      profTax: { amt: Number(info.tax.professional).toFixed(2) }
-    };
-    
-    const yearlyWage = (base * 12).toLocaleString();
-    
-    return { earnings, deductions, yearlyWage, base: base.toLocaleString() };
-  };
-
-  const currentSalaryCalc = calculateSalaryDetails(salaryInfo);
+  }, [activeTab, user?.id]);
 
   // Save Handlers
   const handleSaveAbout = async () => {
@@ -165,8 +135,7 @@ export const AdminProfilePage = () => {
       try {
         const axiosInstance = (await import('../api/axiosInstance')).default;
         await axiosInstance.post('/profile/skills', { name: newSkill.trim() });
-        // Just optimistic update or re-fetch profile
-        updateUser({ skills: [...skills, { name: newSkill.trim() }] });
+        updateUser({ skills: [...(user.skills || []), { name: newSkill.trim() }] });
       } catch (e) {
         console.error(e);
       }
@@ -181,7 +150,7 @@ export const AdminProfilePage = () => {
         const axiosInstance = (await import('../api/axiosInstance')).default;
         await axiosInstance.delete(`/profile/skills/${skillToDelete.id}`);
       }
-      updateUser({ skills: skills.filter(s => s.name !== skillToDelete.name) });
+      updateUser({ skills: (user.skills || []).filter(s => s.name !== skillToDelete.name) });
     } catch (e) {
       console.error(e);
     }
@@ -218,7 +187,7 @@ export const AdminProfilePage = () => {
       try {
         const axiosInstance = (await import('../api/axiosInstance')).default;
         await axiosInstance.post('/profile/certifications', { name: certForm.name.trim(), issuer: certForm.org.trim() });
-        updateUser({ certifications: [...certs, { name: certForm.name.trim(), issuer: certForm.org.trim() }] });
+        updateUser({ certifications: [...(user.certifications || []), { name: certForm.name.trim(), issuer: certForm.org.trim() }] });
       } catch (e) {
         console.error(e);
       }
@@ -233,7 +202,7 @@ export const AdminProfilePage = () => {
         const axiosInstance = (await import('../api/axiosInstance')).default;
         await axiosInstance.delete(`/profile/certifications/${certToDelete.id}`);
       }
-      updateUser({ certifications: certs.filter((_, idx) => idx !== idxToDelete) });
+      updateUser({ certifications: (user.certifications || []).filter((_, idx) => idx !== idxToDelete) });
     } catch (e) {
       console.error(e);
     }
@@ -257,11 +226,22 @@ export const AdminProfilePage = () => {
     }
   };
 
-  const handleSaveSalary = () => {
+  const handleSaveSalary = async () => {
     if (salaryForm) {
-      updateUser({ salaryInfo: salaryForm });
+      try {
+        const axiosInstance = (await import('../api/axiosInstance')).default;
+        const res = await axiosInstance.put(`/salary/${user.id}`, {
+          monthlySalary: salaryForm.monthlySalary,
+          professionalTax: salaryForm.professionalTax,
+          workingDays: salaryForm.workingDays,
+          workingHours: salaryForm.workingHours
+        });
+        setSalaryData(res.data);
+        setIsEditSalaryOpen(false);
+      } catch (e) {
+        console.error("Failed to update salary", e);
+      }
     }
-    setIsEditSalaryOpen(false);
   };
 
   return (
@@ -472,7 +452,7 @@ export const AdminProfilePage = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                   <h3 className="pane-title" style={{ margin: 0 }}>Salary Structure & Compensation</h3>
                   {activeTab === 'Salary Info' && (
-                    <button className="btn btn-outline btn-sm" onClick={() => { setSalaryForm(JSON.parse(JSON.stringify(salaryInfo))); setIsEditSalaryOpen(true); }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => { setSalaryForm(salaryData || { monthlySalary: 10000, workingDays: 5, workingHours: 8, professionalTax: 200 }); setIsEditSalaryOpen(true); }}>
                       <Edit2 size={14} style={{ marginRight: '0.5rem' }}/> Edit Salary Details
                     </button>
                   )}
@@ -481,13 +461,13 @@ export const AdminProfilePage = () => {
                 <div className="admin-salary-hero" style={{ display: 'flex', gap: '2rem', padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: '12px' }}>
                   <div className="salary-hero-main" style={{ flex: 1 }}>
                     <span className="box-label">Monthly Wage</span>
-                    <span className="salary-hero-value" style={{ display: 'block', fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent-primary)', marginBottom: '0.25rem' }}>${currentSalaryCalc.base}</span>
-                    <span className="salary-hero-sub" style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Working Days: {salaryInfo.workingDays} days / week</span>
+                    <span className="salary-hero-value" style={{ display: 'block', fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent-primary)', marginBottom: '0.25rem' }}>${salaryData?.monthlySalary || 0}</span>
+                    <span className="salary-hero-sub" style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Working Days: {salaryData?.workingDays || 5} days / week</span>
                   </div>
                   <div className="salary-hero-main" style={{ flex: 1, borderLeft: '1px solid rgba(0,0,0,0.05)', paddingLeft: '2rem' }}>
                     <span className="box-label">Yearly Wage</span>
-                    <span className="salary-hero-value" style={{ display: 'block', fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '0.25rem' }}>${currentSalaryCalc.yearlyWage}</span>
-                    <span className="salary-hero-sub" style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Break Time: {salaryInfo.breakTime}</span>
+                    <span className="salary-hero-value" style={{ display: 'block', fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '0.25rem' }}>${salaryData?.yearlySalary || 0}</span>
+                    <span className="salary-hero-sub" style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Working Hours: {salaryData?.workingHours || 8} hrs / day</span>
                   </div>
                 </div>
 
@@ -498,28 +478,28 @@ export const AdminProfilePage = () => {
                     <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-main)', fontSize: '1.1rem', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '0.5rem' }}>Salary Components</h4>
                     <div className="admin-detail-grid">
                       <div className="detail-box">
-                        <span className="box-label">Basic Salary ({currentSalaryCalc.earnings.basic.pct}%)</span>
-                        <span className="box-value">${currentSalaryCalc.earnings.basic.amt}</span>
+                        <span className="box-label">Basic Salary (50%)</span>
+                        <span className="box-value">${salaryData?.basicSalary || 0}</span>
                       </div>
                       <div className="detail-box">
-                        <span className="box-label">House Rent Allowance ({currentSalaryCalc.earnings.hra.pct}%)</span>
-                        <span className="box-value">${currentSalaryCalc.earnings.hra.amt}</span>
+                        <span className="box-label">House Rent Allowance (50% of Basic)</span>
+                        <span className="box-value">${salaryData?.houseRentAllowance || 0}</span>
                       </div>
                       <div className="detail-box">
-                        <span className="box-label">Standard Allowance ({currentSalaryCalc.earnings.standardAllowance.pct}%)</span>
-                        <span className="box-value">${currentSalaryCalc.earnings.standardAllowance.amt}</span>
+                        <span className="box-label">Standard Allowance</span>
+                        <span className="box-value">${salaryData?.standardAllowance || 0}</span>
                       </div>
                       <div className="detail-box">
-                        <span className="box-label">Performance Bonus ({currentSalaryCalc.earnings.performanceBonus.pct}%)</span>
-                        <span className="box-value">${currentSalaryCalc.earnings.performanceBonus.amt}</span>
+                        <span className="box-label">Performance Bonus (8.33%)</span>
+                        <span className="box-value">${salaryData?.performanceBonus || 0}</span>
                       </div>
                       <div className="detail-box">
-                        <span className="box-label">Leave Travel Allowance ({currentSalaryCalc.earnings.lta.pct}%)</span>
-                        <span className="box-value">${currentSalaryCalc.earnings.lta.amt}</span>
+                        <span className="box-label">Leave Travel Allowance (8.33%)</span>
+                        <span className="box-value">${salaryData?.leaveTravelAllowance || 0}</span>
                       </div>
                       <div className="detail-box">
-                        <span className="box-label">Fixed Allowance ({currentSalaryCalc.earnings.fixedAllowance.pct}%)</span>
-                        <span className="box-value">${currentSalaryCalc.earnings.fixedAllowance.amt}</span>
+                        <span className="box-label">Fixed Allowance</span>
+                        <span className="box-value">${salaryData?.fixedAllowance || 0}</span>
                       </div>
                     </div>
                   </div>
@@ -530,12 +510,12 @@ export const AdminProfilePage = () => {
                       <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-main)', fontSize: '1.1rem', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '0.5rem' }}>PF Contribution</h4>
                       <div className="admin-detail-grid" style={{ gridTemplateColumns: '1fr' }}>
                         <div className="detail-box">
-                          <span className="box-label">Employee PF ({currentSalaryCalc.deductions.pfEmployee.pct}%)</span>
-                          <span className="box-value text-danger">-${currentSalaryCalc.deductions.pfEmployee.amt}</span>
+                          <span className="box-label">Employee PF ({salaryData?.pfPercentage || 12}%)</span>
+                          <span className="box-value text-danger">-${salaryData?.pfEmployee || 0}</span>
                         </div>
                         <div className="detail-box">
-                          <span className="box-label">Employer PF ({currentSalaryCalc.deductions.pfEmployer.pct}%)</span>
-                          <span className="box-value">${currentSalaryCalc.deductions.pfEmployer.amt}</span>
+                          <span className="box-label">Employer PF ({salaryData?.pfPercentage || 12}%)</span>
+                          <span className="box-value">${salaryData?.pfEmployer || 0}</span>
                         </div>
                       </div>
                     </div>
@@ -545,7 +525,11 @@ export const AdminProfilePage = () => {
                       <div className="admin-detail-grid" style={{ gridTemplateColumns: '1fr' }}>
                         <div className="detail-box">
                           <span className="box-label">Professional Tax (Fixed)</span>
-                          <span className="box-value text-danger">-${currentSalaryCalc.deductions.profTax.amt}</span>
+                          <span className="box-value text-danger">-${salaryData?.professionalTax || 0}</span>
+                        </div>
+                        <div className="detail-box">
+                          <span className="box-label">Net Salary</span>
+                          <span className="box-value" style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>${salaryData?.netSalary || 0}</span>
                         </div>
                       </div>
                     </div>
@@ -708,59 +692,23 @@ export const AdminProfilePage = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="field-group">
                 <label className="field-label">Monthly Wage ($)</label>
-                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.monthlyWage} onChange={e => setSalaryForm({...salaryForm, monthlyWage: e.target.value})} />
+                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.monthlySalary} onChange={e => setSalaryForm({...salaryForm, monthlySalary: Number(e.target.value)})} />
               </div>
               <div className="field-group">
                 <label className="field-label">Working Days (per week)</label>
-                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.workingDays} onChange={e => setSalaryForm({...salaryForm, workingDays: e.target.value})} />
+                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.workingDays} onChange={e => setSalaryForm({...salaryForm, workingDays: Number(e.target.value)})} />
               </div>
               <div className="field-group">
-                <label className="field-label">Break Time</label>
-                <input type="text" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.breakTime} onChange={e => setSalaryForm({...salaryForm, breakTime: e.target.value})} />
+                <label className="field-label">Working Hours (per day)</label>
+                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.workingHours} onChange={e => setSalaryForm({...salaryForm, workingHours: Number(e.target.value)})} />
               </div>
             </div>
 
-            <h4 style={{ margin: '0.5rem 0 0 0', fontSize: '1rem', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '0.5rem' }}>Component Percentages (%)</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div className="field-group">
-                <label className="field-label">Basic Salary %</label>
-                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.components.basic} onChange={e => setSalaryForm({...salaryForm, components: {...salaryForm.components, basic: e.target.value}})} />
-              </div>
-              <div className="field-group">
-                <label className="field-label">HRA %</label>
-                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.components.hra} onChange={e => setSalaryForm({...salaryForm, components: {...salaryForm.components, hra: e.target.value}})} />
-              </div>
-              <div className="field-group">
-                <label className="field-label">Standard Allowance %</label>
-                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.components.standardAllowance} onChange={e => setSalaryForm({...salaryForm, components: {...salaryForm.components, standardAllowance: e.target.value}})} />
-              </div>
-              <div className="field-group">
-                <label className="field-label">Performance Bonus %</label>
-                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.components.performanceBonus} onChange={e => setSalaryForm({...salaryForm, components: {...salaryForm.components, performanceBonus: e.target.value}})} />
-              </div>
-              <div className="field-group">
-                <label className="field-label">LTA %</label>
-                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.components.lta} onChange={e => setSalaryForm({...salaryForm, components: {...salaryForm.components, lta: e.target.value}})} />
-              </div>
-              <div className="field-group">
-                <label className="field-label">Fixed Allowance %</label>
-                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.components.fixedAllowance} onChange={e => setSalaryForm({...salaryForm, components: {...salaryForm.components, fixedAllowance: e.target.value}})} />
-              </div>
-            </div>
-
-            <h4 style={{ margin: '0.5rem 0 0 0', fontSize: '1rem', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '0.5rem' }}>PF & Taxes</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div className="field-group">
-                <label className="field-label">Employee PF %</label>
-                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.pf.employee} onChange={e => setSalaryForm({...salaryForm, pf: {...salaryForm.pf, employee: e.target.value}})} />
-              </div>
-              <div className="field-group">
-                <label className="field-label">Employer PF %</label>
-                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.pf.employer} onChange={e => setSalaryForm({...salaryForm, pf: {...salaryForm.pf, employer: e.target.value}})} />
-              </div>
+            <h4 style={{ margin: '0.5rem 0 0 0', fontSize: '1rem', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '0.5rem' }}>Taxes</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
               <div className="field-group" style={{ gridColumn: '1 / -1' }}>
-                <label className="field-label">Professional Tax (Fixed $)</label>
-                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.tax.professional} onChange={e => setSalaryForm({...salaryForm, tax: {...salaryForm.tax, professional: e.target.value}})} />
+                <label className="field-label">Professional Tax (Fixed Amount)</label>
+                <input type="number" className="input-field" style={{ padding: '0 1rem' }} value={salaryForm.professionalTax} onChange={e => setSalaryForm({...salaryForm, professionalTax: Number(e.target.value)})} />
               </div>
             </div>
 
