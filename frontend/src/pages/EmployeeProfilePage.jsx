@@ -25,6 +25,9 @@ export const EmployeeProfilePage = () => {
   const [activeTab, setActiveTab] = useState('Overview');
   const [isEditSalaryOpen, setIsEditSalaryOpen] = useState(false);
   const [salaryForm, setSalaryForm] = useState(null);
+  
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -36,20 +39,21 @@ export const EmployeeProfilePage = () => {
   }, [location.search]);
 
   useEffect(() => {
-    let data = getEmployeeById(id);
+    let data;
+
+    try {
+      const storedUsers = JSON.parse(
+        localStorage.getItem('mock_db_users') || '[]'
+      );
+      data = storedUsers.find(
+        (u) => String(u.id) === String(id) || String(u.empId) === String(id)
+      );
+    } catch (e) {
+      console.error('Failed to load local users:', e);
+    }
 
     if (!data) {
-      try {
-        const storedUsers = JSON.parse(
-          localStorage.getItem('mock_db_users') || '[]'
-        );
-
-        data = storedUsers.find(
-          (u) => String(u.id) === String(id)
-        );
-      } catch (e) {
-        console.error('Failed to load employee:', e);
-      }
+      data = getEmployeeById(id);
     }
 
     if (data) {
@@ -294,12 +298,23 @@ export const EmployeeProfilePage = () => {
               </div>
 
               {(user?.role === 'Admin' ||
-                user?.role === 'HR Officer') && (
+                user?.role === 'HR Officer' ||
+                String(user?.id) === String(employee.id)) && (
                   <button
                     className="btn btn-primary"
                     style={{
                       width: '100%',
                       marginTop: '1.5rem'
+                    }}
+                    onClick={() => {
+                      setProfileForm({
+                        name: employee.name || employee.fullName || '',
+                        email: employee.email || '',
+                        phone: employee.phone || '',
+                        department: employee.department || '',
+                        location: employee.location || ''
+                      });
+                      setIsEditProfileOpen(true);
                     }}
                   >
                     Edit Employee
@@ -419,18 +434,31 @@ export const EmployeeProfilePage = () => {
                         Leaves Taken (YTD)
                       </span>
                       <span className="box-value">
-                        4 Days
+                        {(() => {
+                          try {
+                            const leaves = JSON.parse(localStorage.getItem('mock_db_leaves') || '[]');
+                            const myLeaves = leaves.filter(l => String(l.userId) === String(employee.id) && l.status === 'Approved');
+                            const totalDays = myLeaves.reduce((sum, l) => sum + l.days, 0);
+                            return `${totalDays} Days`;
+                          } catch { return '0 Days'; }
+                        })()}
                       </span>
                     </div>
 
                     <div className="detail-box">
                       <span className="box-label">
-                        Leaves Remaining
+                        Total Leaves Allowed
                       </span>
                       <span className="box-value">
-                        16 Days
+                        21 Days
                       </span>
                     </div>
+                  </div>
+                  
+                  <div style={{ marginTop: '2rem' }}>
+                    <button className="btn btn-outline" onClick={() => navigate('/attendance')}>
+                       View Full Attendance Log
+                    </button>
                   </div>
                 </div>
               )}
@@ -627,7 +655,7 @@ export const EmployeeProfilePage = () => {
                           Restricted Access
                         </p>
 
-                        {user?.role === 'Admin' && (
+                        {(user?.role === 'Admin' || String(user?.id) === String(employee.id)) && (
                           <button
                             className="btn btn-outline btn-sm"
                             onClick={() => {
@@ -1279,6 +1307,83 @@ export const EmployeeProfilePage = () => {
           >
             Save Salary Details
           </Button>
+        </Modal>
+      )}
+
+      {/* Edit Profile Modal */}
+      {isEditProfileOpen && profileForm && (
+        <Modal
+          isOpen={isEditProfileOpen}
+          onClose={() => setIsEditProfileOpen(false)}
+          title="Edit Employee Profile"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className="form-group">
+              <label className="form-label" style={{ fontWeight: 500, marginBottom: '0.25rem', display: 'block' }}>Full Name</label>
+              <input
+                type="text"
+                style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                value={profileForm.name}
+                onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" style={{ fontWeight: 500, marginBottom: '0.25rem', display: 'block' }}>Email Address</label>
+              <input
+                type="email"
+                style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                value={profileForm.email}
+                onChange={(e) => setProfileForm({...profileForm, email: e.target.value})}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" style={{ fontWeight: 500, marginBottom: '0.25rem', display: 'block' }}>Phone Number</label>
+              <input
+                type="text"
+                style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                value={profileForm.phone}
+                onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
+              />
+            </div>
+            {user?.role === 'Admin' && (
+              <>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 500, marginBottom: '0.25rem', display: 'block' }}>Department</label>
+                  <input
+                    type="text"
+                    style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                    value={profileForm.department}
+                    onChange={(e) => setProfileForm({...profileForm, department: e.target.value})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 500, marginBottom: '0.25rem', display: 'block' }}>Location</label>
+                  <input
+                    type="text"
+                    style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                    value={profileForm.location}
+                    onChange={(e) => setProfileForm({...profileForm, location: e.target.value})}
+                  />
+                </div>
+              </>
+            )}
+            
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+              <button className="btn btn-outline" onClick={() => setIsEditProfileOpen(false)} style={{ flex: 1 }}>Cancel</button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => {
+                  const updatedEmp = updateEmployee?.(employee.id, profileForm);
+                  if (updatedEmp) setEmployee(updatedEmp);
+                  else setEmployee(prev => ({...prev, ...profileForm}));
+                  setIsEditProfileOpen(false);
+                }} 
+                style={{ flex: 1 }}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </>
