@@ -17,29 +17,34 @@ public class AuthResponse {
     private boolean success;
     private String message;
     private Long userId;
-    private String username;
+    private String loginId;
     private String email;
-    private String token;       // Reserved for JWT — null for now
+    private String role;
+    private Long companyId;
+    private String token;
 
     // 2FA pending fields
     private Boolean requires2FA;
     private Long pendingUserId;
 
-    // Private constructor — use static factory methods
+    // Private constructor
     private AuthResponse() {}
 
-    /** Factory: success response with full user details */
-    public static AuthResponse success(String message, Long userId, String username, String email) {
+    /** Factory: success response with full user details and JWT */
+    public static AuthResponse success(String message, Long userId, String loginId, String email, String role, Long companyId, String token) {
         AuthResponse r = new AuthResponse();
         r.success = true;
         r.message = message;
         r.userId = userId;
-        r.username = username;
+        r.loginId = loginId;
         r.email = email;
+        r.role = role;
+        r.companyId = companyId;
+        r.token = token;
         return r;
     }
 
-    /** Factory: simple success message (no user data) */
+    /** Factory: simple success message */
     public static AuthResponse success(String message) {
         AuthResponse r = new AuthResponse();
         r.success = true;
@@ -55,11 +60,7 @@ public class AuthResponse {
         return r;
     }
 
-    /**
-     * Factory: 2FA pending response.
-     * Returned by POST /api/auth/login when the user has 2FA enabled.
-     * The client must then POST to /api/auth/verify-otp with pendingUserId + OTP.
-     */
+    /** Factory: 2FA pending response */
     public static AuthResponse pending2FA(Long userId) {
         AuthResponse r = new AuthResponse();
         r.success = false;
@@ -73,8 +74,10 @@ public class AuthResponse {
     public boolean isSuccess()       { return success; }
     public String getMessage()       { return message; }
     public Long getUserId()          { return userId; }
-    public String getUsername()      { return username; }
+    public String getLoginId()       { return loginId; }
     public String getEmail()         { return email; }
+    public String getRole()          { return role; }
+    public Long getCompanyId()       { return companyId; }
     public String getToken()         { return token; }
     public Boolean getRequires2FA()  { return requires2FA; }
     public Long getPendingUserId()   { return pendingUserId; }

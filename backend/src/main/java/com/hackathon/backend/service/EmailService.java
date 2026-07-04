@@ -58,6 +58,12 @@ public class EmailService {
         sendHtml(to, subject, html);
     }
 
+    public void sendEmployeeWelcomeEmail(String to, String firstName, String loginId, String tempPassword, String loginUrl) {
+        String subject = "Welcome to the Company! Your HRMS Credentials";
+        String html = buildEmployeeWelcomeHtml(firstName, loginId, tempPassword, loginUrl);
+        sendHtml(to, subject, html);
+    }
+
     // ─── Internal send helper ─────────────────────────────────────────────────
 
     private void sendHtml(String to, String subject, String htmlBody) {
@@ -236,6 +242,40 @@ public class EmailService {
             "<p style='margin:0;font-size:12px;color:#9CA3AF;'>&copy; 2026 HackBase &middot; Built with &#10084;&#65039;</p>" +
             "</td></tr>" +
 
+            "</table></td></tr></table></body></html>";
+    }
+
+    private String buildEmployeeWelcomeHtml(String firstName, String loginId, String tempPassword, String loginUrl) {
+        return "<!DOCTYPE html>" +
+            "<html lang='en'><head><meta charset='UTF-8'>" +
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
+            "<title>Welcome to the Team</title></head>" +
+            "<body style='margin:0;padding:0;background:#F0F4FF;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,sans-serif;'>" +
+            "<table width='100%' cellpadding='0' cellspacing='0' style='padding:40px 20px;'>" +
+            "<tr><td align='center'>" +
+            "<table width='580' cellpadding='0' cellspacing='0' style='max-width:580px;width:100%;'>" +
+            "<tr><td align='center' style='padding-bottom:28px;'>" +
+            "<span style='font-size:26px;font-weight:800;color:#4F46E5;letter-spacing:-0.5px;'>&#9889; HackBase HRMS</span>" +
+            "</td></tr>" +
+            "<tr><td style='background:#fff;border-radius:16px;padding:40px;box-shadow:0 4px 24px rgba(79,70,229,0.08);'>" +
+            "<h1 style='margin:0 0 8px;font-size:22px;font-weight:700;color:#1E1B4B;'>Welcome aboard, " + firstName + "! &#127881;</h1>" +
+            "<p style='margin:0 0 28px;font-size:15px;line-height:1.6;color:#6B7280;'>Your account has been created. Here are your login credentials:</p>" +
+            "<div style='background:#F5F3FF;border-left:4px solid #4F46E5;border-radius:0 8px 8px 0;padding:18px 20px;margin-bottom:28px;'>" +
+            "<p style='margin:0 0 6px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:#7C3AED;'>Account Details</p>" +
+            "<p style='margin:0 0 4px;font-size:14px;color:#374151;'><strong>Login ID:</strong> " + loginId + "</p>" +
+            "<p style='margin:0;font-size:14px;color:#374151;'><strong>Temporary Password:</strong> " + tempPassword + "</p>" +
+            "</div>" +
+            "<table cellpadding='0' cellspacing='0' style='margin-bottom:28px;'><tr>" +
+            "<td style='background:#4F46E5;border-radius:8px;'>" +
+            "<a href='" + loginUrl + "' target='_blank' style='display:inline-block;padding:14px 32px;font-size:15px;font-weight:600;color:#fff;text-decoration:none;border-radius:8px;'>Log in to HRMS</a>" +
+            "</td></tr></table>" +
+            "<div style='background:#FEF9C3;border:1px solid #FDE047;border-radius:8px;padding:14px 18px;margin-bottom:28px;'>" +
+            "<p style='margin:0;font-size:13px;color:#713F12;'>&#9200; You will be required to change your password upon your first login.</p>" +
+            "</div>" +
+            "</td></tr>" +
+            "<tr><td align='center' style='padding-top:24px;'>" +
+            "<p style='margin:0;font-size:12px;color:#9CA3AF;'>&copy; 2026 HackBase &middot; Built with &#10084;&#65039;</p>" +
+            "</td></tr>" +
             "</table></td></tr></table></body></html>";
     }
 }

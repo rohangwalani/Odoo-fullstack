@@ -1,186 +1,195 @@
 package com.hackathon.backend.auth;
 
 import com.hackathon.backend.auth.dto.AuthResponse;
+import com.hackathon.backend.auth.dto.CompanySignupRequest;
 import com.hackathon.backend.auth.dto.LoginRequest;
-import com.hackathon.backend.auth.dto.RegisterRequest;
 import com.hackathon.backend.auth.dto.VerifyOtpRequest;
 import com.hackathon.backend.auth.exception.RateLimitExceededException;
-import com.hackathon.backend.model.User;
-import com.hackathon.backend.repository.UserRepository;
-import com.hackathon.backend.service.EmailService;
+import com.hackathon.backend.model.Company;
+import com.hackathon.backend.model.Employee;
+import com.hackathon.backend.model.Role;
+import com.hackathon.backend.repository.CompanyRepository;
+import com.hackathon.backend.repository.EmployeeRepository;
+import com.hackathon.backend.security.JwtUtils;
+import com.hackathon.backend.service.FileStorageService;
 import com.hackathon.backend.service.RateLimitService;
 import com.hackathon.backend.service.TwoFactorService;
+import com.hackathon.backend.util.EmployeeIdGenerator;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Core authentication service.
- * Handles registration, login (with optional 2FA), OTP verification, and 2FA toggle.
- */
+import java.time.LocalDate;
+
 @Service
 public class AuthService {
 
-    private final UserRepository userRepository;
+    private final CompanyRepository companyRepository;
+    private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
-    private final TwoFactorService twoFactorService;
+    private final FileStorageService fileStorageService;
+    private final EmployeeIdGenerator employeeIdGenerator;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtils jwtUtils;
     private final RateLimitService rateLimitService;
+    private final TwoFactorService twoFactorService;
 
-    public AuthService(UserRepository userRepository,
+    public AuthService(CompanyRepository companyRepository,
+                       EmployeeRepository employeeRepository,
                        PasswordEncoder passwordEncoder,
-                       EmailService emailService,
-                       TwoFactorService twoFactorService,
-                       RateLimitService rateLimitService) {
-        this.userRepository = userRepository;
+                       FileStorageService fileStorageService,
+                       EmployeeIdGenerator employeeIdGenerator,
+                       AuthenticationManager authenticationManager,
+                       JwtUtils jwtUtils,
+                       RateLimitService rateLimitService,
+                       TwoFactorService twoFactorService) {
+        this.companyRepository = companyRepository;
+        this.employeeRepository = employeeRepository;
         this.passwordEncoder = passwordEncoder;
-        this.emailService = emailService;
-        this.twoFactorService = twoFactorService;
+        this.fileStorageService = fileStorageService;
+        this.employeeIdGenerator = employeeIdGenerator;
+        this.authenticationManager = authenticationManager;
+        this.jwtUtils = jwtUtils;
         this.rateLimitService = rateLimitService;
+        this.twoFactorService = twoFactorService;
     }
 
-    /**
-     * Registers a new user.
-     * Validates uniqueness of email and username, hashes the password,
-     * and sends a welcome email via Mailtrap.
-     */
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("An account with this email already exists.");
+    public AuthResponse registerCompany(CompanySignupRequest request) {
+        if (companyRepository.findByEmail(request.getEmail().trim().toLowerCase()).isPresent() ||
+            employeeRepository.findByEmail(request.getEmail().trim().toLowerCase()).isPresent()) {
+            throw new IllegalArgumentException("Email is already registered.");
         }
-        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new IllegalArgumentException("This username is already taken.");
-        }
-
-        User user = new User(
-                request.getUsername().trim(),
-                request.getEmail().trim().toLowerCase(),
-                passwordEncoder.encode(request.getPassword())
-        );
-        User savedUser = userRepository.save(user);
-
-        try {
-            emailService.sendWelcomeEmail(savedUser.getEmail(), savedUser.getUsername());
-        } catch (Exception e) {
-            System.err.println("[EmailService] Welcome email failed for " + savedUser.getEmail() + ": " + e.getMessage());
+        if (companyRepository.findByCompanyName(request.getCompanyName().trim()).isPresent()) {
+            throw new IllegalArgumentException("Company name is already registered.");
         }
 
-        return AuthResponse.success(
-                "Registration successful! Welcome, " + savedUser.getUsername() + ".",
-                savedUser.getId(), savedUser.getUsername(), savedUser.getEmail()
-        );
+        String logoPath = null;
+        if (request.getLogo() != null && !request.getLogo().isEmpty()) {
+            logoPath = fileStorageService.storeFile(request.getLogo());
+        }
+
+        Company company = new Company();
+        company.setCompanyName(request.getCompanyName().trim());
+        company.setEmail(request.getEmail().trim().toLowerCase());
+        company.setPhone(request.getPhone() != null ? request.getPhone().trim() : "");
+        company.setPassword(passwordEncoder.encode(request.getPassword()));
+        company.setLogo(logoPath);
+
+        company = companyRepository.save(company);
+
+        // Generate Admin Employee
+        Employee admin = new Employee();
+        admin.setCompany(company);
+        admin.setFirstName(request.getFirstName().trim());
+        admin.setLastName(request.getLastName().trim());
+        admin.setEmail(request.getEmail().trim().toLowerCase());
+        admin.setPhone(request.getPhone() != null ? request.getPhone().trim() : "");
+        admin.setPassword(passwordEncoder.encode(request.getPassword())); // Admin uses same pass initially
+        admin.setRole(Role.ADMIN);
+        admin.setTemporaryPassword(false);
+        admin.setJoiningDate(LocalDate.now());
+
+        String loginId = employeeIdGenerator.generate(company, admin.getFirstName(), admin.getLastName(), admin.getJoiningDate().getYear(), null);
+        admin.setLoginId(loginId);
+
+        employeeRepository.save(admin);
+
+        return AuthResponse.success("Company registered successfully. You can now login.", admin.getId(), admin.getLoginId(), admin.getEmail(), admin.getRole().name(), company.getId(), null);
     }
 
-    /**
-     * Authenticates a user.
-     *
-     * Rate limiting: max 5 failed attempts per 5 minutes per email address.
-     *
-     * If 2FA is DISABLED: returns a full success response immediately.
-     * If 2FA is ENABLED:  generates + stores OTP in Redis (TTL=2min),
-     *                     sends OTP email, returns {requires2FA:true, pendingUserId}.
-     */
     public AuthResponse login(LoginRequest request) {
-        String email = request.getEmail().trim().toLowerCase();
+        String emailOrLoginId = request.getEmail().trim();
 
-        // 1. Rate limit check — before any DB query to avoid timing attacks
-        if (rateLimitService.isLoginRateLimited(email)) {
-            throw new RateLimitExceededException(
-                    "Too many failed login attempts. Please wait 5 minutes before trying again."
-            );
+        if (rateLimitService.isLoginRateLimited(emailOrLoginId)) {
+            throw new RateLimitExceededException("Too many failed login attempts. Please wait 5 minutes before trying again.");
         }
 
-        // 2. Find user — generic error message to prevent email enumeration
-        User user = userRepository.findByEmail(email).orElseThrow(() -> {
-            rateLimitService.recordLoginAttempt(email);
-            return new IllegalArgumentException("Invalid email or password.");
-        });
+        Employee employee = employeeRepository.findByEmail(emailOrLoginId.toLowerCase())
+                .orElseGet(() -> employeeRepository.findByLoginId(emailOrLoginId)
+                        .orElseThrow(() -> {
+                            rateLimitService.recordLoginAttempt(emailOrLoginId);
+                            return new IllegalArgumentException("Invalid credentials.");
+                        }));
 
-        // 3. Verify password
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            rateLimitService.recordLoginAttempt(email);
-            throw new IllegalArgumentException("Invalid email or password.");
+        if (!passwordEncoder.matches(request.getPassword(), employee.getPassword())) {
+            rateLimitService.recordLoginAttempt(emailOrLoginId);
+            throw new IllegalArgumentException("Invalid credentials.");
         }
 
-        // 4. Successful credential check — clear failed attempt counter
-        rateLimitService.clearLoginAttempts(email);
+        rateLimitService.clearLoginAttempts(emailOrLoginId);
 
-        // 5. 2FA check
-        if (user.isTwoFactorEnabled()) {
-            String otp = twoFactorService.generateAndStoreOtp(user.getId());
-            try {
-                emailService.sendTwoFactorEmail(user.getEmail(), user.getUsername(), otp);
-            } catch (Exception e) {
-                System.err.println("[EmailService] 2FA OTP email failed for " + user.getEmail() + ": " + e.getMessage());
-            }
-            return AuthResponse.pending2FA(user.getId());
+        if (employee.isTwoFactorEnabled()) {
+            twoFactorService.generateAndStoreOtp(employee.getId());
+            // TODO: In a real flow, send OTP via EmailService here
+            return AuthResponse.pending2FA(employee.getId());
         }
 
-        // 6. No 2FA — return full success
-        return AuthResponse.success(
-                "Login successful. Welcome back, " + user.getUsername() + "!",
-                user.getId(), user.getUsername(), user.getEmail()
-        );
+        return getAuthResponseWithJwt(employee);
     }
 
-    /**
-     * Verifies the OTP submitted by the user for 2FA login.
-     *
-     * Rate limiting: max 3 attempts per 2-minute window per userId.
-     * One-time use: OTP is deleted from Redis on successful verification.
-     */
     @Transactional
     public AuthResponse verifyOtp(VerifyOtpRequest request) {
         Long userId = request.getUserId();
 
         if (rateLimitService.isOtpRateLimited(userId)) {
-            throw new RateLimitExceededException(
-                    "Too many OTP attempts. Please request a new code and try again."
-            );
+            throw new RateLimitExceededException("Too many OTP attempts.");
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid session. Please log in again."));
+        Employee employee = employeeRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid session."));
 
         rateLimitService.recordOtpAttempt(userId);
 
         if (!twoFactorService.verifyOtp(userId, request.getOtp())) {
-            throw new IllegalArgumentException("Invalid or expired OTP. Please check your email and try again.");
+            throw new IllegalArgumentException("Invalid or expired OTP.");
         }
 
-        // Success — clear rate limit counters
         rateLimitService.clearOtpAttempts(userId);
 
+        return getAuthResponseWithJwt(employee);
+    }
+
+    private AuthResponse getAuthResponseWithJwt(Employee employee) {
+        com.hackathon.backend.security.CustomUserDetails userDetails = com.hackathon.backend.security.CustomUserDetails.build(employee);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities()
+        );
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        String jwt = jwtUtils.generateJwtToken(authentication);
+
         return AuthResponse.success(
-                "Login successful. Welcome back, " + user.getUsername() + "!",
-                user.getId(), user.getUsername(), user.getEmail()
+                "Login successful.",
+                employee.getId(),
+                employee.getLoginId(),
+                employee.getEmail(),
+                employee.getRole().name(),
+                employee.getCompany().getId(),
+                jwt
         );
     }
 
-    /**
-     * Enables 2FA for a user.
-     * In production this would require JWT auth; kept simple for hackathon.
-     */
     @Transactional
-    public AuthResponse enableTwoFactor(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found."));
-        user.setTwoFactorEnabled(true);
-        userRepository.save(user);
-        return AuthResponse.success("Two-factor authentication has been enabled for your account.");
+    public AuthResponse enableTwoFactor(Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("Employee not found."));
+        employee.setTwoFactorEnabled(true);
+        employeeRepository.save(employee);
+        return AuthResponse.success("Two-factor authentication enabled.");
     }
 
-    /**
-     * Disables 2FA for a user and invalidates any active OTP.
-     */
     @Transactional
-    public AuthResponse disableTwoFactor(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found."));
-        user.setTwoFactorEnabled(false);
-        twoFactorService.invalidateOtp(userId);
-        userRepository.save(user);
-        return AuthResponse.success("Two-factor authentication has been disabled for your account.");
+    public AuthResponse disableTwoFactor(Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("Employee not found."));
+        employee.setTwoFactorEnabled(false);
+        twoFactorService.invalidateOtp(employeeId);
+        employeeRepository.save(employee);
+        return AuthResponse.success("Two-factor authentication disabled.");
     }
 }

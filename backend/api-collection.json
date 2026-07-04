@@ -1,303 +1,107 @@
 {
 	"info": {
-		"_postman_id": "hackbase-auth-v2",
-		"name": "HackBase Auth API",
-		"description": "Complete auth test suite for the HackBase backend.\n\nRun ORDER:\n1. Register a user\n2. Login (no 2FA)\n3. Enable 2FA\n4. Login with 2FA → check Mailtrap for OTP\n5. Verify OTP\n6. Test rate limiting\n\nBase URL: http://localhost:8080\nVariables: baseUrl (collection-level)",
+		"_postman_id": "hackbase-hrms-v1",
+		"name": "HackBase HRMS API",
+		"description": "HRMS API covering Auth, JWT, and Employee Management.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
 		{"key": "baseUrl", "value": "http://localhost:8080", "type": "string"},
-		{"key": "registeredUserId", "value": "", "type": "string"},
-		{"key": "pendingUserId", "value": "", "type": "string"}
+		{"key": "adminToken", "value": "", "type": "string"},
+		{"key": "employeeToken", "value": "", "type": "string"},
+		{"key": "adminId", "value": "", "type": "string"},
+		{"key": "companyId", "value": "", "type": "string"},
+		{"key": "employeeId", "value": "", "type": "string"}
 	],
 	"item": [
 		{
-			"name": "Health",
+			"name": "1. Auth & Onboarding",
 			"item": [
 				{
-					"name": "Health Check",
+					"name": "Register Company",
 					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
-						"pm.test('Backend is running', () => pm.expect(pm.response.text()).to.include('running'));"
+						"pm.test('Status is 201', () => pm.response.to.have.status(201));",
+						"pm.collectionVariables.set('adminId', pm.response.json().userId);",
+						"pm.collectionVariables.set('companyId', pm.response.json().companyId);"
 					], "type": "text/javascript"}}],
 					"request": {
-						"method": "GET", "header": [],
-						"url": {"raw": "{{baseUrl}}/api/health", "host": ["{{baseUrl}}"], "path": ["api", "health"]},
-						"description": "Verify the backend is running and MySQL is connected."
-					}, "response": []
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "companyName", "value": "Odoo India", "type": "text"},
+								{"key": "firstName", "value": "Admin", "type": "text"},
+								{"key": "lastName", "value": "User", "type": "text"},
+								{"key": "email", "value": "admin@odoo.com", "type": "text"},
+								{"key": "password", "value": "Secret@123", "type": "text"},
+								{"key": "phone", "value": "9999999999", "type": "text"}
+							]
+						},
+						"url": {"raw": "{{baseUrl}}/api/auth/company/signup", "host": ["{{baseUrl}}"], "path": ["api", "auth", "company", "signup"]}
+					}
+				},
+				{
+					"name": "Login as Admin",
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+						"if(pm.response.json().token) pm.collectionVariables.set('adminToken', pm.response.json().token);"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"email\": \"admin@odoo.com\",\n  \"password\": \"Secret@123\"\n}"},
+						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]}
+					}
 				}
 			]
 		},
 		{
-			"name": "Auth — Registration",
+			"name": "2. Employee Management",
 			"item": [
 				{
-					"name": "Register — Happy Path (201)",
+					"name": "Create Employee (Admin)",
 					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
-						"pm.test('success is true', () => pm.expect(pm.response.json().success).to.be.true);",
-						"pm.test('userId is a number', () => pm.expect(pm.response.json().userId).to.be.a('number'));",
-						"pm.test('email matches input', () => pm.expect(pm.response.json().email).to.equal('john_doe@example.com'));",
-						"pm.collectionVariables.set('registeredUserId', pm.response.json().userId);",
-						"console.log('Registered userId:', pm.response.json().userId);"
+						"pm.test('Status is 201', () => pm.response.to.have.status(201));",
+						"pm.collectionVariables.set('employeeId', pm.response.json().id);"
 					], "type": "text/javascript"}}],
 					"request": {
 						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"username\": \"john_doe\",\n  \"email\": \"john_doe@example.com\",\n  \"password\": \"Secret@123\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"]},
-						"description": "Register a valid user. Password must meet strength requirements.\n\nCheck Mailtrap for the HTML welcome email!"
-					}, "response": []
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"},
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {"mode": "raw", "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john@odoo.com\",\n  \"department\": \"Engineering\",\n  \"designation\": \"Developer\",\n  \"role\": \"EMPLOYEE\"\n}"},
+						"url": {"raw": "{{baseUrl}}/api/employees", "host": ["{{baseUrl}}"], "path": ["api", "employees"]}
+					}
 				},
 				{
-					"name": "Register — Weak Password Rejected (400)",
-					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));",
-						"pm.test('success is false', () => pm.expect(pm.response.json().success).to.be.false);",
-						"pm.test('errors.password contains hint', () => pm.expect(pm.response.json().errors.password).to.include('uppercase'));"
-					], "type": "text/javascript"}}],
+					"name": "Get All Employees (Admin)",
 					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"username\": \"jane_doe\",\n  \"email\": \"jane@example.com\",\n  \"password\": \"simple123\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"]},
-						"description": "Password 'simple123' fails: no uppercase, no special char. Expect 400 with errors.password."
-					}, "response": []
-				},
-				{
-					"name": "Register — Invalid Username (400)",
-					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));",
-						"pm.test('errors.username present', () => pm.expect(pm.response.json().errors).to.have.property('username'));"
-					], "type": "text/javascript"}}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"username\": \"john doe!\",\n  \"email\": \"johnspaces@example.com\",\n  \"password\": \"Secret@123\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"]},
-						"description": "Username 'john doe!' has spaces and ! — rejected by regex. Expect 400."
-					}, "response": []
-				},
-				{
-					"name": "Register — Duplicate Email (409)",
-					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 409 Conflict', () => pm.response.to.have.status(409));",
-						"pm.test('message mentions already exists', () => pm.expect(pm.response.json().message).to.include('already exists'));"
-					], "type": "text/javascript"}}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"username\": \"another_user\",\n  \"email\": \"john_doe@example.com\",\n  \"password\": \"Secret@123\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"]},
-						"description": "Same email as step 1. Expect 409 Conflict."
-					}, "response": []
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}],
+						"url": {"raw": "{{baseUrl}}/api/employees", "host": ["{{baseUrl}}"], "path": ["api", "employees"]}
+					}
 				}
 			]
 		},
 		{
-			"name": "Auth — Login (2FA Disabled)",
+			"name": "3. Employee Profile",
 			"item": [
 				{
-					"name": "Login — Happy Path (200)",
-					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
-						"pm.test('success is true', () => pm.expect(pm.response.json().success).to.be.true);",
-						"pm.test('requires2FA is NOT present', () => pm.expect(pm.response.json().requires2FA).to.be.undefined);",
-						"pm.test('username is john_doe', () => pm.expect(pm.response.json().username).to.equal('john_doe'));"
-					], "type": "text/javascript"}}],
+					"name": "Update Profile",
 					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"email\": \"john_doe@example.com\",\n  \"password\": \"Secret@123\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
-						"description": "Login with 2FA disabled. Expect direct success response (no OTP step)."
-					}, "response": []
-				},
-				{
-					"name": "Login — Wrong Password (401)",
-					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 401 Unauthorized', () => pm.response.to.have.status(401));",
-						"pm.test('generic error message', () => pm.expect(pm.response.json().message).to.equal('Invalid email or password.'));"
-					], "type": "text/javascript"}}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"email\": \"john_doe@example.com\",\n  \"password\": \"WrongPass@1\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
-						"description": "Wrong password. Same error message as wrong email — no email enumeration."
-					}, "response": []
-				}
-			]
-		},
-		{
-			"name": "2FA — Enable, Login, Verify OTP",
-			"item": [
-				{
-					"name": "Step 1: Enable 2FA for User",
-					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
-						"pm.test('success is true', () => pm.expect(pm.response.json().success).to.be.true);",
-						"pm.test('message confirms 2FA enabled', () => pm.expect(pm.response.json().message).to.include('enabled'));"
-					], "type": "text/javascript"}}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"userId\": {{registeredUserId}}\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/2fa/enable", "host": ["{{baseUrl}}"], "path": ["api", "auth", "2fa", "enable"]},
-						"description": "Enable 2FA for the registered user. Uses collection variable {{registeredUserId}}.\n\nAfter this, every login for this user requires an OTP."
-					}, "response": []
-				},
-				{
-					"name": "Step 2: Login with 2FA Enabled → Pending OTP",
-					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
-						"pm.test('requires2FA is true', () => pm.expect(pm.response.json().requires2FA).to.be.true);",
-						"pm.test('pendingUserId is present', () => pm.expect(pm.response.json().pendingUserId).to.be.a('number'));",
-						"pm.test('success is false (pending)', () => pm.expect(pm.response.json().success).to.be.false);",
-						"pm.collectionVariables.set('pendingUserId', pm.response.json().pendingUserId);",
-						"console.log('Check your Mailtrap inbox for the 6-digit OTP!');"
-					], "type": "text/javascript"}}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"email\": \"john_doe@example.com\",\n  \"password\": \"Secret@123\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
-						"description": "Login with 2FA enabled.\n\nExpected response:\n{\n  \"success\": false,\n  \"requires2FA\": true,\n  \"pendingUserId\": 1,\n  \"message\": \"Two-factor authentication required...\"\n}\n\n→ CHECK MAILTRAP INBOX for the 6-digit OTP code!"
-					}, "response": []
-				},
-				{
-					"name": "Step 3: Verify OTP → Full Login Success",
-					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
-						"pm.test('success is true', () => pm.expect(pm.response.json().success).to.be.true);",
-						"pm.test('username is present', () => pm.expect(pm.response.json().username).to.exist);",
-						"pm.test('requires2FA NOT in response', () => pm.expect(pm.response.json().requires2FA).to.be.undefined);"
-					], "type": "text/javascript"}}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"userId\": {{pendingUserId}},\n  \"otp\": \"PASTE_6_DIGIT_OTP_FROM_EMAIL\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["api", "auth", "verify-otp"]},
-						"description": "MANUAL STEP: Replace 'PASTE_6_DIGIT_OTP_FROM_EMAIL' with the code from Mailtrap.\n\nOTP is valid for 2 minutes only. On success returns full user details."
-					}, "response": []
-				},
-				{
-					"name": "Step 3b: Wrong OTP → 401",
-					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 401 Unauthorized', () => pm.response.to.have.status(401));",
-						"pm.test('error message mentions invalid/expired', () => pm.expect(pm.response.json().message).to.include('Invalid'));"
-					], "type": "text/javascript"}}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"userId\": {{pendingUserId}},\n  \"otp\": \"000000\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["api", "auth", "verify-otp"]},
-						"description": "Submit wrong OTP (000000). Expect 401. Run this 3x to trigger rate limiting."
-					}, "response": []
-				},
-				{
-					"name": "Step 4: Disable 2FA",
-					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
-						"pm.test('message confirms 2FA disabled', () => pm.expect(pm.response.json().message).to.include('disabled'));"
-					], "type": "text/javascript"}}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"userId\": {{registeredUserId}}\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/2fa/disable", "host": ["{{baseUrl}}"], "path": ["api", "auth", "2fa", "disable"]},
-						"description": "Disable 2FA. Also invalidates any active OTP in Redis. Next login returns direct success."
-					}, "response": []
-				},
-				{
-					"name": "Step 5: Login after Disable → Direct Success",
-					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
-						"pm.test('success is true — no 2FA step', () => pm.expect(pm.response.json().success).to.be.true);",
-						"pm.test('requires2FA NOT present', () => pm.expect(pm.response.json().requires2FA).to.be.undefined);"
-					], "type": "text/javascript"}}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"email\": \"john_doe@example.com\",\n  \"password\": \"Secret@123\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
-						"description": "Login after 2FA has been disabled. Expect direct success (no OTP step)."
-					}, "response": []
-				}
-			]
-		},
-		{
-			"name": "Rate Limiting",
-			"item": [
-				{
-					"name": "Rate Limit — Login Brute Force (run 6x → 429 on 6th)",
-					"event": [{"listen": "test", "script": {"exec": [
-						"const status = pm.response.code;",
-						"if (status === 429) {",
-						"  pm.test('Rate limit triggered — 429 Too Many Requests', () => pm.response.to.have.status(429));",
-						"  pm.test('message mentions wait', () => pm.expect(pm.response.json().message).to.include('wait'));",
-						"  console.log('RATE LIMIT HIT! Redis is working correctly.');",
-						"} else {",
-						"  pm.test('Attempt recorded — status 401', () => pm.response.to.have.status(401));",
-						"  console.log('Attempt registered. Keep running (5 max before block).');",
-						"}"
-					], "type": "text/javascript"}}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"email\": \"john_doe@example.com\",\n  \"password\": \"WrongPass@Brute\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
-						"description": "RATE LIMIT TEST:\nRun this request 6 times in a row with wrong password.\n\n- Attempts 1-5: Returns 401 Unauthorized\n- Attempt 6:   Returns 429 Too Many Requests\n\nAfter 5 minutes the counter resets (Redis TTL).\n\nVerify in Redis:\n  redis-cli GET rate:login:john_doe@example.com\n  redis-cli TTL rate:login:john_doe@example.com"
-					}, "response": []
-				},
-				{
-					"name": "Rate Limit — OTP Brute Force (run 4x → 429 on 4th)",
-					"event": [{"listen": "test", "script": {"exec": [
-						"const status = pm.response.code;",
-						"if (status === 429) {",
-						"  pm.test('OTP rate limit triggered — 429', () => pm.response.to.have.status(429));",
-						"  pm.test('message mentions too many OTP attempts', () => pm.expect(pm.response.json().message).to.include('OTP'));",
-						"} else {",
-						"  pm.test('OTP attempt recorded — 401', () => pm.response.to.have.status(401));",
-						"}"
-					], "type": "text/javascript"}}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"userId\": {{pendingUserId}},\n  \"otp\": \"111111\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["api", "auth", "verify-otp"]},
-						"description": "OTP RATE LIMIT TEST:\nFirst enable 2FA and trigger the login to get pendingUserId.\nThen run this 4 times with wrong OTP (111111).\n\n- Attempts 1-3: 401 Unauthorized\n- Attempt 4:    429 Too Many Requests\n\nVerify in Redis:\n  redis-cli GET rate:otp:{userId}"
-					}, "response": []
-				}
-			]
-		},
-		{
-			"name": "Password Reset",
-			"item": [
-				{
-					"name": "Forgot Password",
-					"event": [{"listen": "test", "script": {"exec": [
-						"pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
-						"pm.test('Always returns success (no enumeration)', () => pm.expect(pm.response.json().success).to.be.true);",
-						"console.log('Check Mailtrap for the HTML password reset email with the reset button!');"
-					], "type": "text/javascript"}}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"email\": \"john_doe@example.com\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/password/forgot", "host": ["{{baseUrl}}"], "path": ["api", "password", "forgot"]},
-						"description": "Request password reset. Always returns 200 (prevents email enumeration).\n\nCheck Mailtrap for the styled HTML email with Reset button and 15-min expiry warning."
-					}, "response": []
-				},
-				{
-					"name": "Reset Password",
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {"mode": "raw", "raw": "{\n  \"token\": \"PASTE_RESET_TOKEN_FROM_EMAIL_LINK\",\n  \"newPassword\": \"NewSecret@456\"\n}"},
-						"url": {"raw": "{{baseUrl}}/api/password/reset", "host": ["{{baseUrl}}"], "path": ["api", "password", "reset"]},
-						"description": "Copy the token from the reset link in Mailtrap email.\n\nNote: newPassword must meet the strength regex:\n- 8+ chars, uppercase, lowercase, digit, special char"
-					}, "response": []
+						"method": "PUT",
+						"header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "phone", "value": "8888888888", "type": "text"},
+								{"key": "address", "value": "123 Tech Park", "type": "text"}
+							]
+						},
+						"url": {"raw": "{{baseUrl}}/api/employees/{{adminId}}/profile", "host": ["{{baseUrl}}"], "path": ["api", "employees", "{{adminId}}", "profile"]}
+					}
 				}
 			]
 		}
