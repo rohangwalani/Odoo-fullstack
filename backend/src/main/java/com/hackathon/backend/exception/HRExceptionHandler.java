@@ -32,6 +32,21 @@ public class HRExceptionHandler {
         return buildErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(SalaryNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleSalaryNotFound(SalaryNotFoundException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(InvalidSalaryException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidSalary(InvalidSalaryException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(PayrollCalculationException.class)
+    public ResponseEntity<Map<String, String>> handlePayrollCalculationException(PayrollCalculationException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler({
             BadCredentialsException.class,
             UsernameNotFoundException.class
