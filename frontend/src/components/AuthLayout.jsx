@@ -12,13 +12,10 @@ export const AuthLayout = ({ children, title, subtitle }) => {
           transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
           className="auth-card"
         >
-          <div className="brand-logo justify-center">
-            <div className="brand-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--evergreen)' }}>
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
+          <div className="brand-logo justify-center" style={{ marginBottom: '1rem' }}>
+            <div style={{ background: '#3b6be3', borderRadius: '12px', width: '56px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+              <span style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '0.5px' }}>HRIS</span>
             </div>
-            <span className="brand-name">AuthPortal</span>
           </div>
 
           <div className="text-center mb-6">

@@ -8,6 +8,7 @@ import { EmailVerificationPage } from './pages/EmailVerificationPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { EmployeeProfilePage } from './pages/EmployeeProfilePage';
 import { AdminProfilePage } from './pages/AdminProfilePage';
+import { AttendancePage } from './pages/AttendancePage';
 import { useAuth } from './hooks/useAuth';
 
 const ProtectedRoute = ({ children }) => {
@@ -37,6 +38,7 @@ function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/profile" element={<ProtectedRoute><AdminProfilePage /></ProtectedRoute>} />
         <Route path="/employees/:id" element={<ProtectedRoute><EmployeeProfilePage /></ProtectedRoute>} />
+        <Route path="/attendance" element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

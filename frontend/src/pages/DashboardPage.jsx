@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Users, Plane, LogOut, Search, Plus, X, User, FileText, DollarSign, Calendar, Shield, MapPin, Phone, Briefcase, Mail } from 'lucide-react';
+import { Users, Plane, LogOut, Search, Plus, X, User, FileText, DollarSign, Calendar, Shield, MapPin, Phone, Briefcase, Mail, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { mockEmployees } from '../data/mockEmployees';
@@ -11,7 +11,8 @@ export const DashboardPage = () => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [drawerTab, setDrawerTab] = useState('Overview');
   const [employees, setEmployees] = useState([]);
-  const { user, logout } = useAuth();
+  const { user, logout, isCheckedInToday, checkIn, checkOut } = useAuth();
+  const [deleteTrigger, setDeleteTrigger] = useState(0);
   const profileMenuRef = useRef(null);
   const navigate = useNavigate();
 
@@ -39,8 +40,38 @@ export const DashboardPage = () => {
     fetchEmployees();
   }, []);
 
+  useEffect(() => {
+    setIsCheckedIn(isCheckedInToday ? isCheckedInToday() : false);
+  }, [isCheckedInToday]);
+
   const handleCheckIn = () => {
-    setIsCheckedIn(!isCheckedIn);
+    if (isCheckedIn) {
+      if (checkOut) checkOut();
+      setIsCheckedIn(false);
+    } else {
+      if (checkIn) checkIn();
+      setIsCheckedIn(true);
+    }
+  };
+
+  const deleteEmployee = (employeeId) => {
+    if (!window.confirm("Are you sure you want to delete this employee?")) return;
+    
+    const strId = String(employeeId);
+    
+    // Add to soft-delete array to hide hardcoded mock employees
+    const deleted = JSON.parse(localStorage.getItem('mock_db_deleted') || '[]');
+    if (!deleted.includes(strId)) {
+      deleted.push(strId);
+      localStorage.setItem('mock_db_deleted', JSON.stringify(deleted));
+    }
+    
+    // Hard-delete from locally created users database
+    const localUsers = JSON.parse(localStorage.getItem('mock_db_users') || '[]');
+    const updatedLocalUsers = localUsers.filter(u => String(u.id) !== strId && String(u.empId) !== strId);
+    localStorage.setItem('mock_db_users', JSON.stringify(updatedLocalUsers));
+    
+    setDeleteTrigger(prev => prev + 1);
   };
 
   const getInitials = (name) => {
@@ -54,17 +85,16 @@ export const DashboardPage = () => {
     <div className="dashboard-container">
       {/* ── Header ── */}
       <header className="dashboard-header">
-        <div className="dashboard-brand">
-          <div className="dashboard-logo">
-            <Users size={20} />
+        <div className="dashboard-brand" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer' }}>
+          <div className="dashboard-logo" style={{ background: '#3b6be3', borderRadius: '8px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 'bold', letterSpacing: '0.5px' }}>HRIS</span>
           </div>
-          <h1 className="dashboard-title">CoreHR</h1>
         </div>
 
         <nav className="dashboard-nav">
           <button className="nav-link active">Employees</button>
-          <button className="nav-link">Attendance</button>
-          <button className="nav-link">Time Off</button>
+          <button className="nav-link" onClick={() => navigate('/attendance')}>Attendance</button>
+          <button className="nav-link" onClick={() => navigate('/attendance')}>Time Off</button>
         </nav>
 
         <div className="dashboard-actions">
@@ -184,7 +214,43 @@ export const DashboardPage = () => {
                 <div 
                   key={emp.id} 
                   className={`employee-card-compact ${isHighlighted ? 'highlighted' : ''}`}
-                >    <div className="emp-card-avatar" style={{ overflow: 'hidden' }}>
+                  style={{ position: 'relative' }}
+                  onClick={() => {
+                    setSelectedEmployee(emp);
+                    setDrawerTab('Overview');
+                  }}
+                >
+                  {(user?.role === 'ADMIN' || user?.role === 'Admin') && (
+                    <button
+                      className="delete-employee-btn"
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        deleteEmployee(emp.id); 
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--error)',
+                        cursor: 'pointer',
+                        padding: '6px',
+                        zIndex: 15,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title="Delete Employee"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18"></path>
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                      </svg>
+                    </button>
+                  )}
+                  <div className="emp-card-avatar" style={{ overflow: 'hidden' }}>
                     {avatarUrl ? (
                       <img
                         src={avatarUrl}
@@ -295,8 +361,8 @@ export const DashboardPage = () => {
 
             <div className="drawer-footer">
               <button
-                className="btn"
-                style={{ flex: 1, border: '1px solid rgba(116, 192, 68, 0.3)' }}
+                className="btn btn-primary"
+                style={{ flex: 1 }}
                 onClick={() => navigate(`/employees/${selectedEmployee.id}`)}
               >
                 View Full Profile
