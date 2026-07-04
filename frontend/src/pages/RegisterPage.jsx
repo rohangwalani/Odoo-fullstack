@@ -9,13 +9,14 @@ import { InputField } from '../components/InputField';
 import { PasswordInput } from '../components/PasswordInput';
 import { PasswordStrength } from '../components/PasswordStrength';
 import { Button } from '../components/Button';
-import axiosInstance from '../api/axiosInstance';
 import toast from 'react-hot-toast';
+import { useAuth } from '../hooks/useAuth';
 
 export const RegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const { registerUser, user, login } = useAuth();
 
   const {
     register,
@@ -31,31 +32,30 @@ export const RegisterPage = () => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('companyName', data.companyName);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       
-      const nameParts = data.fullName.split(' ', 2);
-      formData.append('firstName', nameParts[0]);
-      formData.append('lastName', nameParts.length > 1 ? nameParts[1] : '');
+      // Store in mock database
+      const userData = {
+        name: data.fullName,
+        email: data.email,
+        phone: data.phoneNumber,
+        company: data.companyName,
+        password: data.password, // Only storing for mock purposes
+        role: user?.role === 'Admin' ? 'Employee' : 'Admin' // Admins create Employees, public users become Admins
+      };
       
-      formData.append('email', data.email);
-      formData.append('password', data.password);
-      formData.append('phone', data.phoneNumber);
+      const newUser = registerUser(userData);
       
-      if (fileInputRef.current?.files[0]) {
-        formData.append('logo', fileInputRef.current.files[0]);
+      if (user?.role === 'Admin') {
+        toast.success(`Email sent to ${data.email} with login credentials!`, { className: 'custom-toast' });
+        navigate('/dashboard');
+      } else {
+        toast.success('Account created successfully!', { className: 'custom-toast' });
+        login(newUser.email, newUser);
+        navigate('/dashboard');
       }
-
-      await axiosInstance.post('/auth/company/signup', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      
-      toast.success('Account created successfully!', { className: 'custom-toast' });
-      navigate('/login');
     } catch (error) {
-      // handled by interceptor
+      toast.error(error.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -115,11 +115,13 @@ export const RegisterPage = () => {
         <InputField
           label="Phone Number"
           type="tel"
-          placeholder="Phone number"
+          placeholder="Enter phone number"
           icon={Phone}
           error={errors.phoneNumber}
           {...register('phoneNumber')}
         />
+
+
 
         <InputField
           label="Email Address"

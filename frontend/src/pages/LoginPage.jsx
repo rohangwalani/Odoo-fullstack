@@ -15,7 +15,7 @@ import { useAuth } from '../hooks/useAuth';
 export const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, authenticateUser } = useAuth();
 
   const {
     register,
@@ -28,14 +28,18 @@ export const LoginPage = () => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const response = await axiosInstance.post('/auth/login', data);
+      await new Promise((resolve) => setTimeout(resolve, 800));
       
-      const { token, ...userData } = response.data;
-      login(token, userData);
+      // Use mock authentication
+      const user = authenticateUser(data.email, data.password);
+      
+      // Pass the user's email as the token (for mock purposes) and the fully hydrated user object
+      login(user.email, user);
+      
       toast.success('Successfully logged in!', { className: 'custom-toast' });
-      navigate('/dashboard');
+      navigate('/dashboard'); 
     } catch (error) {
-      // Error handled by interceptor
+      toast.error(error.message || 'Login failed');
     } finally {
       setLoading(false);
     }
