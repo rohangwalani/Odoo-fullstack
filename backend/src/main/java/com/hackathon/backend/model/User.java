@@ -31,6 +31,9 @@ public class User {
 
     private String role = "ROLE_EMPLOYEE"; // Default role
 
+    private String department;
+    private String profilePicture;
+
     // Constructors, Getters, and Setters
 
     public User() {}
@@ -95,5 +98,21 @@ public class User {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
+    }
+
+    public String getProfilePicture() {
+        return profilePicture;
+    }
+
+    public void setProfilePicture(String profilePicture) {
+        this.profilePicture = profilePicture;
     }
 }

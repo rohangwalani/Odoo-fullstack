@@ -12,10 +12,17 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    private final com.hackathon.backend.repository.AttendanceRepository attendanceRepository;
+    private final com.hackathon.backend.repository.LeaveRequestRepository leaveRequestRepository;
 
-    public UserService(UserRepository userRepository, org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, 
+                       org.springframework.security.crypto.password.PasswordEncoder passwordEncoder,
+                       com.hackathon.backend.repository.AttendanceRepository attendanceRepository,
+                       com.hackathon.backend.repository.LeaveRequestRepository leaveRequestRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.attendanceRepository = attendanceRepository;
+        this.leaveRequestRepository = leaveRequestRepository;
     }
 
     public List<User> getAllUsers() {
@@ -55,5 +62,35 @@ public class UserService {
         user.setResetToken(null);
         user.setResetTokenExpiry(null);
         userRepository.save(user);
+    }
+
+    public org.springframework.data.domain.Page<com.hackathon.backend.dto.EmployeeCardResponse> searchEmployees(
+            String keyword, String department, org.springframework.data.domain.Pageable pageable) {
+        
+        return userRepository.searchEmployees(keyword, department, pageable)
+                .map(user -> {
+                    String status = "Absent"; // Default
+                    java.time.LocalDate today = java.time.LocalDate.now();
+                    
+                    // Check if present today
+                    if (attendanceRepository.findByUserAndDate(user, today).isPresent()) {
+                        status = "Present";
+                    } else {
+                        // Check if on leave today
+                        long activeLeaves = leaveRequestRepository.countApprovedLeavesForUserOnDate(user, today);
+                        if (activeLeaves > 0) {
+                            status = "Leave";
+                        }
+                    }
+
+                    return new com.hackathon.backend.dto.EmployeeCardResponse(
+                            user.getId(),
+                            user.getUsername(),
+                            "EMP" + String.format("%04d", user.getId()),
+                            user.getDepartment(),
+                            user.getProfilePicture(),
+                            status
+                    );
+                });
     }
 }

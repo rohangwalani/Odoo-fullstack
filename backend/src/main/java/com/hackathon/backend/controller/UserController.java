@@ -41,4 +41,15 @@ public class UserController {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/search")
+    public ResponseEntity<org.springframework.data.domain.Page<com.hackathon.backend.dto.EmployeeCardResponse>> searchEmployees(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String department,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return ResponseEntity.ok(userService.searchEmployees(keyword, department, pageable));
+    }
 }

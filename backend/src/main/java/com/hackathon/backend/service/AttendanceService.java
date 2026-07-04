@@ -12,9 +12,16 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.hackathon.backend.exception.DuplicateAttendanceException;
+import com.hackathon.backend.exception.AttendanceNotFoundException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 @Service
 public class AttendanceService {
+
+    private static final Logger log = LoggerFactory.getLogger(AttendanceService.class);
 
     private final AttendanceRepository attendanceRepository;
     private final UserRepository userRepository;
@@ -25,11 +32,13 @@ public class AttendanceService {
     }
 
     public AttendanceResponse checkIn(String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+        log.info("Checking in user with email: {}", email);
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("User not found"));
         LocalDate today = LocalDate.now();
 
         if (attendanceRepository.findByUserAndDate(user, today).isPresent()) {
-            throw new RuntimeException("Already checked in today");
+            log.warn("User {} already checked in today", email);
+            throw new DuplicateAttendanceException("Already checked in today");
         }
 
         Attendance attendance = new Attendance();
@@ -43,20 +52,25 @@ public class AttendanceService {
     }
 
     public AttendanceResponse checkOut(String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+        log.info("Checking out user with email: {}", email);
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("User not found"));
         LocalDate today = LocalDate.now();
 
         Attendance attendance = attendanceRepository.findByUserAndDate(user, today)
-                .orElseThrow(() -> new RuntimeException("No check-in found for today"));
+                .orElseThrow(() -> new AttendanceNotFoundException("No check-in found for today"));
 
         if (attendance.getCheckOut() != null) {
-            throw new RuntimeException("Already checked out today");
+            log.warn("User {} already checked out today", email);
+            throw new DuplicateAttendanceException("Already checked out today");
         }
 
         attendance.setCheckOut(LocalTime.now());
+        long minutesWorked = java.time.Duration.between(attendance.getCheckIn(), attendance.getCheckOut()).toMinutes();
+        double hoursWorked = minutesWorked / 60.0;
+        attendance.setWorkingHours(hoursWorked);
+
         // Simple logic for half day: if worked less than 4 hours
-        long hoursWorked = java.time.Duration.between(attendance.getCheckIn(), attendance.getCheckOut()).toHours();
-        if (hoursWorked < 4) {
+        if (hoursWorked < 4.0) {
             attendance.setStatus(AttendanceStatus.HALF_DAY);
         }
 
@@ -92,7 +106,8 @@ public class AttendanceService {
                 a.getDate(),
                 a.getCheckIn(),
                 a.getCheckOut(),
-                a.getStatus() != null ? a.getStatus().name() : null
+                a.getStatus() != null ? a.getStatus().name() : null,
+                a.getWorkingHours()
         );
     }
 }

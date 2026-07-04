@@ -10,9 +10,15 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.hackathon.backend.exception.PayrollNotFoundException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 @Service
 public class PayrollService {
+
+    private static final Logger log = LoggerFactory.getLogger(PayrollService.class);
 
     private final PayrollRepository payrollRepository;
     private final UserRepository userRepository;
@@ -23,8 +29,9 @@ public class PayrollService {
     }
 
     public PayrollResponse getMyPayroll(String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
-        Payroll payroll = payrollRepository.findByUser(user).orElseThrow(() -> new RuntimeException("Payroll not generated yet"));
+        log.info("Fetching payroll for user: {}", email);
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        Payroll payroll = payrollRepository.findByUser(user).orElseThrow(() -> new PayrollNotFoundException("Payroll not generated yet"));
         return mapToResponse(payroll);
     }
 
@@ -35,7 +42,8 @@ public class PayrollService {
     }
 
     public PayrollResponse updatePayroll(Long employeeId, PayrollRequestDTO dto) {
-        User user = userRepository.findById(employeeId).orElseThrow(() -> new RuntimeException("User not found"));
+        log.info("Updating payroll for employee ID: {}", employeeId);
+        User user = userRepository.findById(employeeId).orElseThrow(() -> new UsernameNotFoundException("User not found"));
         Payroll payroll = payrollRepository.findByUser(user).orElse(new Payroll());
         
         payroll.setUser(user);
