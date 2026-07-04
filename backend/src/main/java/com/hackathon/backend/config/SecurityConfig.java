@@ -46,12 +46,11 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/auth/**", "/error", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/v3/api-docs").permitAll()
                 // Public endpoints
                 .requestMatchers("/api/auth/company/signup", "/api/auth/login", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/auth/verify-otp").permitAll()
                 .requestMatchers("/api/health").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
-                // Swagger UI
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 // Employee Management endpoints (Admin only)
                 .requestMatchers("/api/employees").hasRole("ADMIN")
                 .requestMatchers("/api/employees/**").authenticated()

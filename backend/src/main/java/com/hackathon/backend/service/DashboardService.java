@@ -37,7 +37,7 @@ public class DashboardService {
     }
 
     public EmployeeDashboardResponse getEmployeeDashboard(String email) {
-        Employee employee = employeeRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("Employee not found"));
+        Employee employee = employeeRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
         EmployeeDashboardResponse response = new EmployeeDashboardResponse();
         
         response.setEmployeeName(employee.getFirstName() + " " + employee.getLastName());

@@ -11,8 +11,9 @@ public class AttendanceResponse {
     private LocalTime checkIn;
     private LocalTime checkOut;
     private String status;
+    private Double workingHours;
 
-    public AttendanceResponse(Long id, Long employeeId, String employeeName, LocalDate date, LocalTime checkIn, LocalTime checkOut, String status) {
+    public AttendanceResponse(Long id, Long employeeId, String employeeName, LocalDate date, LocalTime checkIn, LocalTime checkOut, String status, Double workingHours) {
         this.id = id;
         this.employeeId = employeeId;
         this.employeeName = employeeName;
@@ -20,6 +21,7 @@ public class AttendanceResponse {
         this.checkIn = checkIn;
         this.checkOut = checkOut;
         this.status = status;
+        this.workingHours = workingHours;
     }
 
     // Getters
@@ -30,4 +32,5 @@ public class AttendanceResponse {
     public LocalTime getCheckIn() { return checkIn; }
     public LocalTime getCheckOut() { return checkOut; }
     public String getStatus() { return status; }
+    public Double getWorkingHours() { return workingHours; }
 }

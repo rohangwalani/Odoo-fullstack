@@ -20,9 +20,6 @@ export const WelcomePage = () => {
         <h2 className="welcome-headline">
           Welcome to CoreHR
         </h2>
-        <p className="welcome-subtitle">
-          Empower your employees, streamline your operations, and build a thriving workplace culture with our intelligent HR platform.
-        </p>
 
 
 

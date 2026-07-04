@@ -4,10 +4,18 @@ import com.hackathon.backend.model.LeaveRequest;
 import com.hackathon.backend.model.LeaveStatus;
 import com.hackathon.backend.model.Employee;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
+@Repository
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
     List<LeaveRequest> findByEmployee(Employee employee);
     List<LeaveRequest> findByStatus(LeaveStatus status);
+
+    @Query("SELECT COUNT(l) FROM LeaveRequest l WHERE l.employee = :employee AND l.status = 'APPROVED' AND :date BETWEEN l.fromDate AND l.toDate")
+    long countApprovedLeavesForEmployeeOnDate(@Param("employee") Employee employee, @Param("date") LocalDate date);
 }

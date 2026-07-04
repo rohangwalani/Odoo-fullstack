@@ -15,6 +15,12 @@ import com.hackathon.backend.util.PasswordGenerator;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import com.hackathon.backend.repository.AttendanceRepository;
+import com.hackathon.backend.dto.EmployeeCardResponse;
+import com.hackathon.backend.model.Attendance;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -30,6 +36,7 @@ public class EmployeeService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final FileStorageService fileStorageService;
+    private final AttendanceRepository attendanceRepository;
 
     public EmployeeService(EmployeeRepository employeeRepository,
                            CompanyRepository companyRepository,
@@ -37,7 +44,8 @@ public class EmployeeService {
                            PasswordGenerator passwordGenerator,
                            PasswordEncoder passwordEncoder,
                            EmailService emailService,
-                           FileStorageService fileStorageService) {
+                           FileStorageService fileStorageService,
+                           AttendanceRepository attendanceRepository) {
         this.employeeRepository = employeeRepository;
         this.companyRepository = companyRepository;
         this.idGenerator = idGenerator;
@@ -45,6 +53,7 @@ public class EmployeeService {
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
         this.fileStorageService = fileStorageService;
+        this.attendanceRepository = attendanceRepository;
     }
 
     @Transactional
@@ -150,5 +159,32 @@ public class EmployeeService {
             throw new SecurityException("Not authorized to delete this employee.");
         }
         employeeRepository.delete(employee);
+    }
+
+    public Page<EmployeeCardResponse> searchEmployees(Long companyId, String keyword, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Employee> employees = employeeRepository.searchEmployees(companyId, keyword, pageable);
+
+        return employees.map(emp -> {
+            String status = "Absent"; // Default
+            
+            // Check if present today
+            Attendance attendance = attendanceRepository.findByEmployeeAndDate(emp, LocalDate.now()).orElse(null);
+            if (attendance != null) {
+                status = "Present";
+            } else {
+                // In a real app we would check if they are on leave today
+                // But for simplicity, we will just use Absent if no check-in
+            }
+
+            return new EmployeeCardResponse(
+                    emp.getId(),
+                    emp.getFirstName() + " " + emp.getLastName(),
+                    emp.getLoginId(),
+                    emp.getDepartment(),
+                    emp.getProfilePicture(),
+                    status
+            );
+        });
     }
 }
