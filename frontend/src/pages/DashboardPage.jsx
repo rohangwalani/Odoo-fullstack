@@ -1,28 +1,39 @@
-import { useState } from 'react';
-import { Users, Plane, LogOut, Search, Plus, X } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Users, Plane, LogOut, Search, Plus, X, User, FileText, DollarSign, Calendar, Shield, MapPin, Phone, Briefcase, Mail } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { mockEmployees } from '../data/mockEmployees';
 
 export const DashboardPage = () => {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const { logout } = useAuth();
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [drawerTab, setDrawerTab] = useState('Overview');
+  const { user, logout } = useAuth();
+  const profileMenuRef = useRef(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleCheckIn = () => {
     setIsCheckedIn(!isCheckedIn);
   };
 
-  const employees = [
-    { id: 1, name: 'Sarah Jenkins', empId: 'EMP-001', email: 'sarah.j@corehr.com', status: 'present' },
-    { id: 2, name: 'Michael Chen', empId: 'EMP-002', email: 'michael.c@corehr.com', status: 'leave' },
-    { id: 3, name: 'Emily Davis', empId: 'EMP-003', email: 'emily.d@corehr.com', status: 'absent' },
-    { id: 4, name: 'Robert Fox', empId: 'EMP-004', email: 'robert.f@corehr.com', status: 'present' },
-    { id: 5, name: 'Cody Fisher', empId: 'EMP-005', email: 'cody.f@corehr.com', status: 'present' },
-    { id: 6, name: 'Esther Howard', empId: 'EMP-006', email: 'esther.h@corehr.com', status: 'leave' },
-    { id: 7, name: 'Jenny Wilson', empId: 'EMP-007', email: 'jenny.w@corehr.com', status: 'present' },
-    { id: 8, name: 'Guy Hawkins', empId: 'EMP-008', email: 'guy.h@corehr.com', status: 'absent' },
-    { id: 9, name: 'Jacob Jones', empId: 'EMP-009', email: 'jacob.j@corehr.com', status: 'present' },
-  ];
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  };
+
+
 
   return (
     <div className="dashboard-container">
@@ -49,107 +60,242 @@ export const DashboardPage = () => {
               {isCheckedIn ? 'Checked In' : 'Checked Out'}
             </span>
           </div>
-          
-          <button onClick={logout} className="nav-link" title="Logout">
-            <LogOut size={20} />
-          </button>
+          <div className="profile-menu-container" ref={profileMenuRef}>
+            <div
+              className="profile-trigger"
+              onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+            >
+              <div className="profile-avatar" style={{ overflow: 'hidden' }}>
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => e.target.style.display = 'none'} />
+                ) : (
+                  getInitials(user?.name)
+                )}
+              </div>
+              <div className="profile-info">
+                <span className="profile-name">{user?.name || 'User'}</span>
+                <span className="profile-role">{user?.role || 'Employee'}</span>
+              </div>
+            </div>
+
+            {isProfileMenuOpen && (
+              <div className="profile-dropdown">
+                <div className="dropdown-header">
+                  <strong>{user?.name}</strong>
+                </div>
+                <div className="dropdown-divider"></div>
+                <button className="dropdown-item" onClick={() => navigate(`/profile?tab=Overview`)}>
+                  <User size={16} /> My Profile
+                </button>
+                <button className="dropdown-item" onClick={() => navigate(`/profile?tab=Salary Info`)}>
+                  <DollarSign size={16} /> Salary Slip
+                </button>
+                <button className="dropdown-item" onClick={() => navigate(`/profile?tab=Attendance`)}>
+                  <Calendar size={16} /> My Attendance
+                </button>
+                <button className="dropdown-item" onClick={() => navigate(`/profile?tab=Resume`)}>
+                  <FileText size={16} /> Resume
+                </button>
+                <div className="dropdown-divider"></div>
+                <button className="dropdown-item text-danger" onClick={logout}>
+                  <LogOut size={16} /> Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
       {/* ── Main Content ── */}
       <main className="dashboard-main">
-        
+
+        {/* ── Page Banner ── */}
+        <div className="page-banner">
+          <h2>Employee Directory</h2>
+          <p>Manage your team members, view their status, and add new employees to the organization.</p>
+        </div>
+
         {/* ── Subheader / Toolbar ── */}
         <div className="dashboard-toolbar">
-          <h2 className="section-title" style={{ marginBottom: 0 }}>Employee Directory</h2>
-          
+          <h2 className="section-title" style={{ marginBottom: 0, fontSize: '1.25rem' }}>All Employees</h2>
+
           <div className="toolbar-actions">
             <div className="search-box">
               <Search size={18} className="search-icon" />
-              <input 
-                type="text" 
-                placeholder="Search employee..." 
+              <input
+                type="text"
+                placeholder="Search by full name or ID..."
                 className="search-input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary add-user-btn">
-              <Plus size={18} />
-              Add New User
-            </button>
+            {user?.role === 'Admin' && (
+              <button className="btn btn-primary add-user-btn" onClick={() => navigate('/register')}>
+                <Plus size={18} />
+                Add New User
+              </button>
+            )}
           </div>
         </div>
-        
+
         <div className="employee-grid">
-          {[...employees]
+          {(() => {
+             const localUsers = JSON.parse(localStorage.getItem('mock_db_users')) || [];
+             const combined = [...mockEmployees];
+             localUsers.forEach(u => {
+               if (!combined.find(m => m.email === u.email)) {
+                 combined.push(u);
+               }
+             });
+             return combined;
+          })()
             .sort((a, b) => {
               if (!searchQuery) return 0;
-              const aMatch = a.name.toLowerCase().includes(searchQuery.toLowerCase());
-              const bMatch = b.name.toLowerCase().includes(searchQuery.toLowerCase());
+              const q = searchQuery.toLowerCase();
+              
+              const aName = a.name || a.fullName || '';
+              const aId = (a.empId || a.id || '').toString();
+              const aMatch = aName.toLowerCase().includes(q) || aId.toLowerCase().includes(q);
+              
+              const bName = b.name || b.fullName || '';
+              const bId = (b.empId || b.id || '').toString();
+              const bMatch = bName.toLowerCase().includes(q) || bId.toLowerCase().includes(q);
+              
               if (aMatch && !bMatch) return -1;
               if (!aMatch && bMatch) return 1;
               return 0;
             })
             .map((emp) => {
-            const isHighlighted = searchQuery && emp.name.toLowerCase().includes(searchQuery.toLowerCase());
-            
-            return (
-              <div 
-                key={emp.id} 
-                className={`employee-card-minimal ${isHighlighted ? 'highlighted' : ''}`}
-                onClick={() => setSelectedEmployee(emp)}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className="employee-avatar-large">
-                  <Users size={40} />
+              const q = searchQuery ? searchQuery.toLowerCase() : '';
+              const empName = emp.name || emp.fullName || '';
+              const empId = (emp.empId || emp.id || '').toString();
+              const isHighlighted = q && (empName.toLowerCase().includes(q) || empId.toLowerCase().includes(q));
+              
+              return (
+                <div 
+                  key={emp.id} 
+                  className={`employee-card-compact ${isHighlighted ? 'highlighted' : ''}`}
+                >    <div className="emp-card-avatar" style={{ overflow: 'hidden' }}>
+                    {emp.avatarUrl ? (
+                      <img
+                        src={emp.avatarUrl}
+                        alt={empName}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div style={{ display: emp.avatarUrl ? 'none' : 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                      {getInitials(empName || 'User')}
+                    </div>
+                  </div>
+                  <div className="emp-card-info">
+                    <div className="emp-card-name">{empName || 'User'}</div>
+                    <div className="emp-card-role">{emp.role}</div>
+                    <div className="emp-card-meta">
+                      <span className="emp-card-id">{emp.empId}</span> • <span>{emp.department}</span>
+                    </div>
+                  </div>
+
+                  <div className={`badge badge-${emp.status}`}>
+                    {emp.status}
+                  </div>
+
+                  {/* Hover Overlay */}
+                  <div className="emp-card-overlay">
+                    <div className="overlay-info" style={{ textAlign: 'left', marginBottom: '0.5rem' }}>
+                      <div style={{ fontSize: '0.875rem', fontWeight: '500', color: 'var(--text-main)', marginBottom: '0.25rem' }}><Mail size={12} style={{ display: 'inline', marginRight: '4px' }} /> {emp.email}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}><Phone size={12} style={{ display: 'inline', marginRight: '4px' }} /> {emp.phone}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        className="btn btn-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedEmployee(emp);
+                          setDrawerTab('Overview');
+                        }}
+                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', background: 'var(--bg-input)' }}
+                      >
+                        Quick Preview
+                      </button>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/employees/${emp.id}`);
+                        }}
+                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                      >
+                        Full Profile
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="employee-name-minimal">{emp.name}</div>
-                
-                {/* Keep status indicators small and absolutely positioned, or directly below name */}
-                <div className={`employee-status-minimal status-${emp.status}`}>
-                  {emp.status === 'present' && <div className="status-dot"></div>}
-                  {emp.status === 'leave' && <Plane size={14} />}
-                  {emp.status === 'absent' && <div className="status-dot"></div>}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       </main>
 
-      {/* ── Employee Preview Modal ── */}
+      {/* ── Employee Preview Drawer ── */}
       {selectedEmployee && (
-        <div className="preview-modal-overlay" onClick={() => setSelectedEmployee(null)}>
-          <div className="preview-modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="preview-close-btn" onClick={() => setSelectedEmployee(null)}>
-              <X size={24} />
-            </button>
-            
-            <div className="preview-header">
-              <div className="preview-avatar">
-                <Users size={64} />
-              </div>
-              <div className="preview-title-box">
-                <h2>{selectedEmployee.name}</h2>
-                <div className={`preview-status status-${selectedEmployee.status}`}>
-                  {selectedEmployee.status === 'present' && <><div className="status-dot"></div> Present</>}
-                  {selectedEmployee.status === 'leave' && <><Plane size={16} /> On Leave</>}
-                  {selectedEmployee.status === 'absent' && <><div className="status-dot"></div> Absent</>}
+        <div className="drawer-overlay" onClick={() => setSelectedEmployee(null)}>
+          <div className="drawer-content" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <div className="drawer-profile">
+                <div className="drawer-avatar" style={{ overflow: 'hidden' }}>
+                  {selectedEmployee.avatarUrl ? (
+                    <img
+                      src={selectedEmployee.avatarUrl}
+                      alt={selectedEmployee.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div style={{ display: selectedEmployee.avatarUrl ? 'none' : 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                    {getInitials(selectedEmployee.name)}
+                  </div>
                 </div>
+                <div>
+                  <h2 style={{ fontSize: '1.25rem', margin: '0 0 0.25rem 0' }}>{selectedEmployee.name}</h2>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{selectedEmployee.role}</div>
+                </div>
+              </div>
+              <button className="drawer-close" onClick={() => setSelectedEmployee(null)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="drawer-body">
+              <div className="preview-details">
+                <div className="detail-row"><span className="detail-label">Status</span><span className={`badge badge-${selectedEmployee.status}`} style={{ alignSelf: 'flex-start' }}>{selectedEmployee.status}</span></div>
+                <div className="detail-row"><span className="detail-label">Employee ID</span><span className="detail-value">{selectedEmployee.empId}</span></div>
+                <div className="detail-row"><span className="detail-label">Email</span><span className="detail-value"><a href={`mailto:${selectedEmployee.email}`}>{selectedEmployee.email}</a></span></div>
+                <div className="detail-row"><span className="detail-label">Phone</span><span className="detail-value">{selectedEmployee.phone}</span></div>
+                <div className="detail-row"><span className="detail-label">Department</span><span className="detail-value">{selectedEmployee.department}</span></div>
+                <div className="detail-row"><span className="detail-label">Manager</span><span className="detail-value">{selectedEmployee.manager}</span></div>
+                <div className="detail-row"><span className="detail-label">Location</span><span className="detail-value">{selectedEmployee.location}</span></div>
+                <div className="detail-row"><span className="detail-label">Joining Date</span><span className="detail-value">{selectedEmployee.joiningDate}</span></div>
               </div>
             </div>
 
-            <div className="preview-details">
-              <div className="detail-row">
-                <span className="detail-label">Employee ID</span>
-                <span className="detail-value emp-id">{selectedEmployee.empId}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Email Address</span>
-                <span className="detail-value">{selectedEmployee.email}</span>
-              </div>
-              {/* Could add more fields here if desired */}
+            <div className="drawer-footer">
+              <button
+                className="btn"
+                style={{ flex: 1, border: '1px solid rgba(116, 192, 68, 0.3)' }}
+                onClick={() => navigate(`/employees/${selectedEmployee.id}`)}
+              >
+                View Full Profile
+              </button>
+              {(user?.role === 'Admin' || user?.role === 'HR Officer') && (
+                <button className="btn btn-primary" style={{ flex: 1 }}>Edit Employee</button>
+              )}
             </div>
           </div>
         </div>

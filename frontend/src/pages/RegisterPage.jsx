@@ -9,13 +9,14 @@ import { InputField } from '../components/InputField';
 import { PasswordInput } from '../components/PasswordInput';
 import { PasswordStrength } from '../components/PasswordStrength';
 import { Button } from '../components/Button';
-import axiosInstance from '../api/axiosInstance';
 import toast from 'react-hot-toast';
+import { useAuth } from '../hooks/useAuth';
 
 export const RegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const { registerUser, user, login } = useAuth();
 
   const {
     register,
@@ -31,14 +32,30 @@ export const RegisterPage = () => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      // Mock API call
-      // await axiosInstance.post('/auth/register', data);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       
-      toast.success('Account created successfully!', { className: 'custom-toast' });
-      navigate('/login');
+      // Store in mock database
+      const userData = {
+        name: data.fullName,
+        email: data.email,
+        phone: data.phoneNumber,
+        company: data.companyName,
+        password: data.password, // Only storing for mock purposes
+        role: user?.role === 'Admin' ? 'Employee' : 'Admin' // Admins create Employees, public users become Admins
+      };
+      
+      const newUser = registerUser(userData);
+      
+      if (user?.role === 'Admin') {
+        toast.success(`Email sent to ${data.email} with login credentials!`, { className: 'custom-toast' });
+        navigate('/dashboard');
+      } else {
+        toast.success('Account created successfully!', { className: 'custom-toast' });
+        login(newUser.email, newUser);
+        navigate('/dashboard');
+      }
     } catch (error) {
-      // handled by interceptor
+      toast.error(error.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -98,11 +115,13 @@ export const RegisterPage = () => {
         <InputField
           label="Phone Number"
           type="tel"
-          placeholder="Phone number"
+          placeholder="Enter phone number"
           icon={Phone}
           error={errors.phoneNumber}
           {...register('phoneNumber')}
         />
+
+
 
         <InputField
           label="Email Address"
