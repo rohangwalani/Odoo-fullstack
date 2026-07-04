@@ -29,6 +29,9 @@ class SalaryServiceTest {
     @Mock
     private EmployeeRepository employeeRepository;
 
+    @Mock
+    private com.hackathon.backend.repository.PayrollRepository payrollRepository;
+
     @InjectMocks
     private SalaryService salaryService;
 

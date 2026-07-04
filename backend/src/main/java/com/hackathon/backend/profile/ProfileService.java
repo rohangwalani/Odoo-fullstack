@@ -55,6 +55,7 @@ public class ProfileService {
         response.setDepartment(employee.getDepartment());
         response.setDesignation(employee.getDesignation());
         response.setAvatar(employee.getProfilePicture());
+        response.setRole(employee.getRole().name());
         response.setJoiningDate(employee.getJoiningDate());
 
         response.setAbout(profile.getAbout());

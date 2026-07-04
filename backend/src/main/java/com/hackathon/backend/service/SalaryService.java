@@ -31,8 +31,19 @@ public class SalaryService {
     public SalaryResponse getSalary(Long employeeId) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
-        Salary salary = salaryRepository.findByEmployee(employee)
-                .orElseThrow(() -> new SalaryNotFoundException("Salary not configured for this employee"));
+        Salary salary = salaryRepository.findByEmployee(employee).orElse(null);
+        
+        if (salary == null) {
+            SalaryResponse emptyResponse = new SalaryResponse();
+            emptyResponse.setMonthlySalary(0.0);
+            emptyResponse.setYearlySalary(0.0);
+            emptyResponse.setWorkingDays(5);
+            emptyResponse.setWorkingHours(8);
+            emptyResponse.setPfPercentage(12.0);
+            emptyResponse.setProfessionalTax(200.0);
+            return emptyResponse;
+        }
+        
         return mapToResponse(salary);
     }
 

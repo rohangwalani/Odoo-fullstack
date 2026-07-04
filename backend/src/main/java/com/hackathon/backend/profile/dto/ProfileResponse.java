@@ -16,6 +16,7 @@ public class ProfileResponse {
     private String department;
     private String designation;
     private String avatar; // Maps to profilePicture
+    private String role;
     private LocalDate joiningDate;
 
     // Resume / Profile Info

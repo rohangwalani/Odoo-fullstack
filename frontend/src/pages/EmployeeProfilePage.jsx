@@ -93,11 +93,13 @@ export const EmployeeProfilePage = () => {
   };
 
   const canViewPrivateInfo =
+    user?.role?.toUpperCase() === 'ADMIN' ||
     user?.role === 'Admin' ||
     user?.role === 'HR Officer' ||
     String(user?.id) === String(employee.id);
 
   const canViewSalaryInfo =
+    user?.role?.toUpperCase() === 'ADMIN' ||
     user?.role === 'Admin' ||
     user?.role === 'HR Officer' ||
     String(user?.id) === String(employee.id);
@@ -232,7 +234,7 @@ export const EmployeeProfilePage = () => {
                 </div>
               </div>
 
-              {(user?.role === 'Admin' ||
+              {(user?.role?.toUpperCase() === 'ADMIN' ||
                 user?.role === 'HR Officer') && (
                   <button
                     className="btn btn-primary"
@@ -566,7 +568,7 @@ export const EmployeeProfilePage = () => {
                           Restricted Access
                         </p>
 
-                        {user?.role === 'Admin' && (
+                        {user?.role?.toUpperCase() === 'ADMIN' && (
                           <button
                             className="btn btn-outline btn-sm"
                             onClick={() => {

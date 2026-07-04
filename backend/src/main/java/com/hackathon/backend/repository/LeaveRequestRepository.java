@@ -14,6 +14,7 @@ import java.util.List;
 @Repository
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
     List<LeaveRequest> findByEmployee(Employee employee);
+    long countByStatus(LeaveStatus status);
     List<LeaveRequest> findByStatus(LeaveStatus status);
 
     @Query("SELECT COUNT(l) FROM LeaveRequest l WHERE l.employee = :employee AND l.status = 'APPROVED' AND :date BETWEEN l.fromDate AND l.toDate")
