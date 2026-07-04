@@ -10,6 +10,8 @@ backend/*.jar
 backend/*.war
 backend/.factorypath
 backend/architecture.properties
+# Local dev credentials (gitignored — use .env.example as reference)
+backend/src/main/resources/application-local.properties
 
 # Frontend (Node / React)
 frontend/node_modules/
