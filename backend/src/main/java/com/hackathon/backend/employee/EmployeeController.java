@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import com.hackathon.backend.dto.EmployeeCardResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,16 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.getEmployees(userDetails.getCompanyId()));
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<Page<EmployeeCardResponse>> searchEmployees(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        
+        return ResponseEntity.ok(employeeService.searchEmployees(userDetails.getCompanyId(), keyword, page, size));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<EmployeeResponse> getEmployee(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -60,16 +72,7 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.updateEmployeeByAdmin(id, userDetails.getCompanyId(), request));
     }
 
-    @PutMapping("/{id}/profile")
-    public ResponseEntity<EmployeeResponse> updateProfileByEmployee(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long id,
-            @ModelAttribute ProfileUpdateRequest request) {
-        if (!userDetails.getId().equals(id)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-        return ResponseEntity.ok(employeeService.updateProfileByEmployee(id, request));
-    }
+
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")

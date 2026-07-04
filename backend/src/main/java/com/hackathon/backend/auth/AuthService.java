@@ -4,6 +4,9 @@ import com.hackathon.backend.auth.dto.AuthResponse;
 import com.hackathon.backend.auth.dto.CompanySignupRequest;
 import com.hackathon.backend.auth.dto.LoginRequest;
 import com.hackathon.backend.auth.dto.VerifyOtpRequest;
+import com.hackathon.backend.auth.dto.ChangePasswordRequest;
+import com.hackathon.backend.auth.dto.ForgotPasswordRequest;
+import com.hackathon.backend.auth.dto.ResetPasswordRequest;
 import com.hackathon.backend.auth.exception.RateLimitExceededException;
 import com.hackathon.backend.model.Company;
 import com.hackathon.backend.model.Employee;
@@ -78,7 +81,7 @@ public class AuthService {
         company.setEmail(request.getEmail().trim().toLowerCase());
         company.setPhone(request.getPhone() != null ? request.getPhone().trim() : "");
         company.setPassword(passwordEncoder.encode(request.getPassword()));
-        company.setLogo(logoPath);
+        company.setCompanyLogo(logoPath);
 
         company = companyRepository.save(company);
 
@@ -95,6 +98,11 @@ public class AuthService {
         admin.setJoiningDate(LocalDate.now());
 
         String loginId = employeeIdGenerator.generate(company, admin.getFirstName(), admin.getLastName(), admin.getJoiningDate().getYear(), null);
+        while (employeeRepository.findByLoginId(loginId).isPresent()) {
+            Employee fakeLatest = new Employee();
+            fakeLatest.setLoginId(loginId);
+            loginId = employeeIdGenerator.generate(company, admin.getFirstName(), admin.getLastName(), admin.getJoiningDate().getYear(), fakeLatest);
+        }
         admin.setLoginId(loginId);
 
         employeeRepository.save(admin);
@@ -191,5 +199,59 @@ public class AuthService {
         twoFactorService.invalidateOtp(employeeId);
         employeeRepository.save(employee);
         return AuthResponse.success("Two-factor authentication disabled.");
+    }
+
+    public AuthResponse logout() {
+        return AuthResponse.success("Logged out successfully.");
+    }
+
+    @Transactional
+    public AuthResponse changePassword(Long employeeId, ChangePasswordRequest request) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("Employee not found."));
+
+        if (!passwordEncoder.matches(request.getOldPassword(), employee.getPassword())) {
+            throw new IllegalArgumentException("Invalid old password.");
+        }
+
+        employee.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        employee.setTemporaryPassword(false);
+        employeeRepository.save(employee);
+
+        return AuthResponse.success("Password changed successfully.");
+    }
+
+    @Transactional
+    public AuthResponse forgotPassword(ForgotPasswordRequest request) {
+        Employee employee = employeeRepository.findByEmail(request.getEmail().trim().toLowerCase())
+                .orElseThrow(() -> new IllegalArgumentException("Email not found."));
+
+        String resetToken = java.util.UUID.randomUUID().toString();
+        employee.setResetToken(resetToken);
+        employee.setResetTokenExpiry(java.time.LocalDateTime.now().plusHours(1));
+        employeeRepository.save(employee);
+
+        // TODO: Send email with resetToken
+        // emailService.sendPasswordResetEmail(employee.getEmail(), resetToken);
+
+        return AuthResponse.success("Password reset link sent to your email.");
+    }
+
+    @Transactional
+    public AuthResponse resetPassword(ResetPasswordRequest request) {
+        Employee employee = employeeRepository.findByResetToken(request.getToken())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired reset token."));
+
+        if (employee.getResetTokenExpiry().isBefore(java.time.LocalDateTime.now())) {
+            throw new IllegalArgumentException("Reset token has expired.");
+        }
+
+        employee.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        employee.setResetToken(null);
+        employee.setResetTokenExpiry(null);
+        employee.setTemporaryPassword(false);
+        employeeRepository.save(employee);
+
+        return AuthResponse.success("Password reset successfully.");
     }
 }

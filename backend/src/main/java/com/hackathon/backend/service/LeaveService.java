@@ -5,42 +5,71 @@ import com.hackathon.backend.dto.LeaveResponseDTO;
 import com.hackathon.backend.model.LeaveRequest;
 import com.hackathon.backend.model.LeaveStatus;
 import com.hackathon.backend.model.LeaveType;
-import com.hackathon.backend.model.User;
+import com.hackathon.backend.model.Employee;
 import com.hackathon.backend.repository.LeaveRequestRepository;
-import com.hackathon.backend.repository.UserRepository;
+import com.hackathon.backend.repository.EmployeeRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.hackathon.backend.exception.InvalidLeaveException;
+import com.hackathon.backend.exception.LeaveNotFoundException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import java.time.LocalDate;
 
 @Service
 public class LeaveService {
 
-    private final LeaveRequestRepository leaveRequestRepository;
-    private final UserRepository userRepository;
+    private static final Logger log = LoggerFactory.getLogger(LeaveService.class);
 
-    public LeaveService(LeaveRequestRepository leaveRequestRepository, UserRepository userRepository) {
+    private final LeaveRequestRepository leaveRequestRepository;
+    private final EmployeeRepository employeeRepository;
+
+    public LeaveService(LeaveRequestRepository leaveRequestRepository, EmployeeRepository employeeRepository) {
         this.leaveRequestRepository = leaveRequestRepository;
-        this.userRepository = userRepository;
+        this.employeeRepository = employeeRepository;
     }
 
     public LeaveResponseDTO applyForLeave(String email, LeaveRequestDTO dto) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+        log.info("Applying for leave for user: {}", email);
+        Employee employee = employeeRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("User not found"));
         
         LeaveRequest request = new LeaveRequest();
-        request.setUser(user);
+        request.setEmployee(employee);
         request.setLeaveType(LeaveType.valueOf(dto.getLeaveType().toUpperCase()));
         request.setFromDate(dto.getFromDate());
         request.setToDate(dto.getToDate());
         request.setRemarks(dto.getRemarks());
+
+        // Validate Past Dates
+        if (request.getFromDate().isBefore(LocalDate.now())) {
+            log.warn("Cannot apply for leave in the past: {}", request.getFromDate());
+            throw new InvalidLeaveException("Cannot apply for leave on past dates.");
+        }
+        if (request.getToDate().isBefore(request.getFromDate())) {
+            log.warn("To Date {} is before From Date {}", request.getToDate(), request.getFromDate());
+            throw new InvalidLeaveException("End date cannot be before start date.");
+        }
+
+        // Validate Overlap with existing approved leaves
+        boolean hasOverlap = leaveRequestRepository.findByEmployee(employee).stream()
+                .filter(l -> l.getStatus() == LeaveStatus.APPROVED)
+                .anyMatch(l -> !(request.getToDate().isBefore(l.getFromDate()) || request.getFromDate().isAfter(l.getToDate())));
+
+        if (hasOverlap) {
+            log.warn("Leave overlaps with existing approved leave for user {}", email);
+            throw new InvalidLeaveException("Cannot apply for leave that overlaps with an existing approved leave.");
+        }
         
         LeaveRequest saved = leaveRequestRepository.save(request);
         return mapToResponse(saved);
     }
 
     public List<LeaveResponseDTO> getMyLeaves(String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
-        return leaveRequestRepository.findByUser(user).stream()
+        Employee employee = employeeRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        return leaveRequestRepository.findByEmployee(employee).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -52,14 +81,16 @@ public class LeaveService {
     }
 
     public LeaveResponseDTO approveLeave(Long id, String comments) {
-        LeaveRequest request = leaveRequestRepository.findById(id).orElseThrow(() -> new RuntimeException("Leave request not found"));
+        log.info("Approving leave request {}", id);
+        LeaveRequest request = leaveRequestRepository.findById(id).orElseThrow(() -> new LeaveNotFoundException("Leave request not found"));
         request.setStatus(LeaveStatus.APPROVED);
         request.setAdminComments(comments);
         return mapToResponse(leaveRequestRepository.save(request));
     }
 
     public LeaveResponseDTO rejectLeave(Long id, String comments) {
-        LeaveRequest request = leaveRequestRepository.findById(id).orElseThrow(() -> new RuntimeException("Leave request not found"));
+        log.info("Rejecting leave request {}", id);
+        LeaveRequest request = leaveRequestRepository.findById(id).orElseThrow(() -> new LeaveNotFoundException("Leave request not found"));
         request.setStatus(LeaveStatus.REJECTED);
         request.setAdminComments(comments);
         return mapToResponse(leaveRequestRepository.save(request));
@@ -68,8 +99,8 @@ public class LeaveService {
     private LeaveResponseDTO mapToResponse(LeaveRequest l) {
         return new LeaveResponseDTO(
                 l.getId(),
-                l.getUser().getId(),
-                l.getUser().getUsername(),
+                l.getEmployee().getId(),
+                l.getEmployee().getFirstName() + " " + l.getEmployee().getLastName(),
                 l.getLeaveType().name(),
                 l.getFromDate(),
                 l.getToDate(),

@@ -69,11 +69,16 @@ export const AuthProvider = ({ children }) => {
             setUser(foundUser);
           } else {
             localStorage.removeItem('authToken');
+            localStorage.removeItem('userData');
           }
+        } else {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userData');
         }
       } catch (error) {
-        console.error('Failed to verify token:', error);
+        console.error('Failed to parse user data:', error);
         localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
       } finally {
         setLoading(false);
       }
@@ -84,11 +89,13 @@ export const AuthProvider = ({ children }) => {
 
   const login = (token, userData) => {
     localStorage.setItem('authToken', token);
+    localStorage.setItem('userData', JSON.stringify(userData));
     setUser(userData);
   };
 
   const logout = () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
     setUser(null);
   };
 
