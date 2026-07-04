@@ -28,14 +28,12 @@ export const LoginPage = () => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      // Mocking API call
-      // const response = await axiosInstance.post('/auth/login', data);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const response = await axiosInstance.post('/auth/login', data);
       
-      // Mock success
-      login('fake-jwt-token', { email: data.email });
+      const { token, ...userData } = response.data;
+      login(token, userData);
       toast.success('Successfully logged in!', { className: 'custom-toast' });
-      navigate('/dashboard'); // Or wherever
+      navigate('/dashboard');
     } catch (error) {
       // Error handled by interceptor
     } finally {

@@ -1,28 +1,50 @@
-import { useState } from 'react';
-import { Users, Plane, LogOut, Search, Plus, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, Plane, LogOut, Search, Plus, X, Calendar, CheckCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import axiosInstance from '../api/axiosInstance';
+import toast from 'react-hot-toast';
 
 export const DashboardPage = () => {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const [employees, setEmployees] = useState([]);
+  const [stats, setStats] = useState(null);
 
-  const handleCheckIn = () => {
-    setIsCheckedIn(!isCheckedIn);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (user?.role === 'ADMIN') {
+          const statsRes = await axiosInstance.get('/dashboard/admin');
+          setStats(statsRes.data);
+          const empRes = await axiosInstance.get('/employees');
+          setEmployees(empRes.data);
+        } else if (user?.role === 'EMPLOYEE') {
+          const statsRes = await axiosInstance.get('/dashboard/employee');
+          setStats(statsRes.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data");
+      }
+    };
+    if (user) fetchData();
+  }, [user]);
+
+  const handleCheckIn = async () => {
+    try {
+      if (isCheckedIn) {
+        await axiosInstance.post('/attendance/check-out', {});
+        toast.success("Checked out successfully");
+      } else {
+        await axiosInstance.post('/attendance/check-in', {});
+        toast.success("Checked in successfully");
+      }
+      setIsCheckedIn(!isCheckedIn);
+    } catch (error) {
+      // error handled by interceptor
+    }
   };
-
-  const employees = [
-    { id: 1, name: 'Sarah Jenkins', empId: 'EMP-001', email: 'sarah.j@corehr.com', status: 'present' },
-    { id: 2, name: 'Michael Chen', empId: 'EMP-002', email: 'michael.c@corehr.com', status: 'leave' },
-    { id: 3, name: 'Emily Davis', empId: 'EMP-003', email: 'emily.d@corehr.com', status: 'absent' },
-    { id: 4, name: 'Robert Fox', empId: 'EMP-004', email: 'robert.f@corehr.com', status: 'present' },
-    { id: 5, name: 'Cody Fisher', empId: 'EMP-005', email: 'cody.f@corehr.com', status: 'present' },
-    { id: 6, name: 'Esther Howard', empId: 'EMP-006', email: 'esther.h@corehr.com', status: 'leave' },
-    { id: 7, name: 'Jenny Wilson', empId: 'EMP-007', email: 'jenny.w@corehr.com', status: 'present' },
-    { id: 8, name: 'Guy Hawkins', empId: 'EMP-008', email: 'guy.h@corehr.com', status: 'absent' },
-    { id: 9, name: 'Jacob Jones', empId: 'EMP-009', email: 'jacob.j@corehr.com', status: 'present' },
-  ];
 
   return (
     <div className="dashboard-container">
@@ -36,12 +58,13 @@ export const DashboardPage = () => {
         </div>
 
         <nav className="dashboard-nav">
-          <button className="nav-link active">Employees</button>
-          <button className="nav-link">Attendance</button>
-          <button className="nav-link">Time Off</button>
+          <button className="nav-link active">Dashboard</button>
         </nav>
 
         <div className="dashboard-actions">
+          <div className="user-welcome" style={{ marginRight: '1rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+            Welcome, {user?.name}
+          </div>
           {/* Check-in Widget */}
           <div className="checkin-widget" onClick={handleCheckIn} title="Click to Check In/Out">
             <div className={`checkin-circle ${isCheckedIn ? 'checked-in' : 'checked-out'}`}></div>
@@ -58,64 +81,77 @@ export const DashboardPage = () => {
 
       {/* ── Main Content ── */}
       <main className="dashboard-main">
-        
-        {/* ── Subheader / Toolbar ── */}
-        <div className="dashboard-toolbar">
-          <h2 className="section-title" style={{ marginBottom: 0 }}>Employee Directory</h2>
-          
-          <div className="toolbar-actions">
-            <div className="search-box">
-              <Search size={18} className="search-icon" />
-              <input 
-                type="text" 
-                placeholder="Search employee..." 
-                className="search-input"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <button className="btn btn-primary add-user-btn">
-              <Plus size={18} />
-              Add New User
-            </button>
-          </div>
-        </div>
-        
-        <div className="employee-grid">
-          {[...employees]
-            .sort((a, b) => {
-              if (!searchQuery) return 0;
-              const aMatch = a.name.toLowerCase().includes(searchQuery.toLowerCase());
-              const bMatch = b.name.toLowerCase().includes(searchQuery.toLowerCase());
-              if (aMatch && !bMatch) return -1;
-              if (!aMatch && bMatch) return 1;
-              return 0;
-            })
-            .map((emp) => {
-            const isHighlighted = searchQuery && emp.name.toLowerCase().includes(searchQuery.toLowerCase());
-            
-            return (
-              <div 
-                key={emp.id} 
-                className={`employee-card-minimal ${isHighlighted ? 'highlighted' : ''}`}
-                onClick={() => setSelectedEmployee(emp)}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className="employee-avatar-large">
-                  <Users size={40} />
+        {user?.role === 'ADMIN' ? (
+          <>
+            <div className="dashboard-toolbar">
+              <h2 className="section-title" style={{ marginBottom: 0 }}>Employee Directory</h2>
+              <div className="toolbar-actions">
+                <div className="search-box">
+                  <Search size={18} className="search-icon" />
+                  <input 
+                    type="text" 
+                    placeholder="Search employee..." 
+                    className="search-input"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
-                <div className="employee-name-minimal">{emp.name}</div>
-                
-                {/* Keep status indicators small and absolutely positioned, or directly below name */}
-                <div className={`employee-status-minimal status-${emp.status}`}>
-                  {emp.status === 'present' && <div className="status-dot"></div>}
-                  {emp.status === 'leave' && <Plane size={14} />}
-                  {emp.status === 'absent' && <div className="status-dot"></div>}
-                </div>
+                <button className="btn btn-primary add-user-btn">
+                  <Plus size={18} />
+                  Add New User
+                </button>
               </div>
-            );
-          })}
-        </div>
+            </div>
+            
+            <div className="employee-grid">
+              {employees
+                .filter(emp => {
+                  if (!searchQuery) return true;
+                  const name = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+                  return name.includes(searchQuery.toLowerCase());
+                })
+                .map((emp) => (
+                  <div 
+                    key={emp.id} 
+                    className="employee-card-minimal"
+                    onClick={() => setSelectedEmployee(emp)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="employee-avatar-large">
+                      <Users size={40} />
+                    </div>
+                    <div className="employee-name-minimal">{emp.firstName} {emp.lastName}</div>
+                  </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 className="section-title">My Dashboard</h2>
+            <div className="employee-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+              <div className="employee-card-minimal">
+                <CheckCircle size={32} color="var(--success)" />
+                <div style={{ marginTop: '1rem', fontSize: '1.2rem', fontWeight: 'bold' }}>{stats?.presentDays || 0}</div>
+                <div style={{ color: 'var(--text-secondary)' }}>Present Days</div>
+              </div>
+              <div className="employee-card-minimal">
+                <X size={32} color="var(--error)" />
+                <div style={{ marginTop: '1rem', fontSize: '1.2rem', fontWeight: 'bold' }}>{stats?.absentDays || 0}</div>
+                <div style={{ color: 'var(--text-secondary)' }}>Absent Days</div>
+              </div>
+              <div className="employee-card-minimal">
+                <Calendar size={32} color="var(--warning)" />
+                <div style={{ marginTop: '1rem', fontSize: '1.2rem', fontWeight: 'bold' }}>{stats?.pendingLeaves || 0}</div>
+                <div style={{ color: 'var(--text-secondary)' }}>Pending Leaves</div>
+              </div>
+              <div className="employee-card-minimal">
+                <Plane size={32} color="var(--primary)" />
+                <div style={{ marginTop: '1rem', fontSize: '1.2rem', fontWeight: 'bold' }}>{stats?.approvedLeaves || 0}</div>
+                <div style={{ color: 'var(--text-secondary)' }}>Approved Leaves</div>
+              </div>
+            </div>
+          </>
+        )}
       </main>
 
       {/* ── Employee Preview Modal ── */}
@@ -131,25 +167,27 @@ export const DashboardPage = () => {
                 <Users size={64} />
               </div>
               <div className="preview-title-box">
-                <h2>{selectedEmployee.name}</h2>
-                <div className={`preview-status status-${selectedEmployee.status}`}>
-                  {selectedEmployee.status === 'present' && <><div className="status-dot"></div> Present</>}
-                  {selectedEmployee.status === 'leave' && <><Plane size={16} /> On Leave</>}
-                  {selectedEmployee.status === 'absent' && <><div className="status-dot"></div> Absent</>}
-                </div>
+                <h2>{selectedEmployee.firstName} {selectedEmployee.lastName}</h2>
               </div>
             </div>
 
             <div className="preview-details">
               <div className="detail-row">
                 <span className="detail-label">Employee ID</span>
-                <span className="detail-value emp-id">{selectedEmployee.empId}</span>
+                <span className="detail-value emp-id">{selectedEmployee.loginId}</span>
               </div>
               <div className="detail-row">
                 <span className="detail-label">Email Address</span>
                 <span className="detail-value">{selectedEmployee.email}</span>
               </div>
-              {/* Could add more fields here if desired */}
+              <div className="detail-row">
+                <span className="detail-label">Department</span>
+                <span className="detail-value">{selectedEmployee.department || 'N/A'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Role</span>
+                <span className="detail-value">{selectedEmployee.role}</span>
+              </div>
             </div>
           </div>
         </div>

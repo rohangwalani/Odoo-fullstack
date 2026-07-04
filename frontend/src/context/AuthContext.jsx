@@ -11,14 +11,17 @@ export const AuthProvider = ({ children }) => {
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('authToken');
-        if (token) {
-          // Verify token and fetch user details
-          // For now, mock a successful login
-          setUser({ email: 'test@example.com', name: 'Test User' });
+        const userDataStr = localStorage.getItem('userData');
+        if (token && userDataStr) {
+          setUser(JSON.parse(userDataStr));
+        } else {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userData');
         }
       } catch (error) {
-        console.error('Failed to verify token:', error);
+        console.error('Failed to parse user data:', error);
         localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
       } finally {
         setLoading(false);
       }
@@ -29,11 +32,13 @@ export const AuthProvider = ({ children }) => {
 
   const login = (token, userData) => {
     localStorage.setItem('authToken', token);
+    localStorage.setItem('userData', JSON.stringify(userData));
     setUser(userData);
   };
 
   const logout = () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
     setUser(null);
   };
 

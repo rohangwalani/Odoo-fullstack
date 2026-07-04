@@ -31,9 +31,26 @@ export const RegisterPage = () => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      // Mock API call
-      // await axiosInstance.post('/auth/register', data);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const formData = new FormData();
+      formData.append('companyName', data.companyName);
+      
+      const nameParts = data.fullName.split(' ', 2);
+      formData.append('firstName', nameParts[0]);
+      formData.append('lastName', nameParts.length > 1 ? nameParts[1] : '');
+      
+      formData.append('email', data.email);
+      formData.append('password', data.password);
+      formData.append('phone', data.phoneNumber);
+      
+      if (fileInputRef.current?.files[0]) {
+        formData.append('logo', fileInputRef.current.files[0]);
+      }
+
+      await axiosInstance.post('/auth/company/signup', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       
       toast.success('Account created successfully!', { className: 'custom-toast' });
       navigate('/login');

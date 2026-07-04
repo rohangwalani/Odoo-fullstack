@@ -3,9 +3,9 @@ package com.hackathon.backend.service;
 import com.hackathon.backend.dto.PayrollRequestDTO;
 import com.hackathon.backend.dto.PayrollResponse;
 import com.hackathon.backend.model.Payroll;
-import com.hackathon.backend.model.User;
+import com.hackathon.backend.model.Employee;
 import com.hackathon.backend.repository.PayrollRepository;
-import com.hackathon.backend.repository.UserRepository;
+import com.hackathon.backend.repository.EmployeeRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,16 +15,16 @@ import java.util.stream.Collectors;
 public class PayrollService {
 
     private final PayrollRepository payrollRepository;
-    private final UserRepository userRepository;
+    private final EmployeeRepository employeeRepository;
 
-    public PayrollService(PayrollRepository payrollRepository, UserRepository userRepository) {
+    public PayrollService(PayrollRepository payrollRepository, EmployeeRepository employeeRepository) {
         this.payrollRepository = payrollRepository;
-        this.userRepository = userRepository;
+        this.employeeRepository = employeeRepository;
     }
 
     public PayrollResponse getMyPayroll(String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
-        Payroll payroll = payrollRepository.findByUser(user).orElseThrow(() -> new RuntimeException("Payroll not generated yet"));
+        Employee employee = employeeRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("Employee not found"));
+        Payroll payroll = payrollRepository.findByEmployee(employee).orElseThrow(() -> new RuntimeException("Payroll not generated yet"));
         return mapToResponse(payroll);
     }
 
@@ -35,10 +35,10 @@ public class PayrollService {
     }
 
     public PayrollResponse updatePayroll(Long employeeId, PayrollRequestDTO dto) {
-        User user = userRepository.findById(employeeId).orElseThrow(() -> new RuntimeException("User not found"));
-        Payroll payroll = payrollRepository.findByUser(user).orElse(new Payroll());
+        Employee employee = employeeRepository.findById(employeeId).orElseThrow(() -> new RuntimeException("Employee not found"));
+        Payroll payroll = payrollRepository.findByEmployee(employee).orElse(new Payroll());
         
-        payroll.setUser(user);
+        payroll.setEmployee(employee);
         payroll.setBasicSalary(dto.getBasicSalary());
         payroll.setAllowances(dto.getAllowances());
         payroll.setDeductions(dto.getDeductions());
@@ -56,8 +56,8 @@ public class PayrollService {
     private PayrollResponse mapToResponse(Payroll p) {
         return new PayrollResponse(
                 p.getId(),
-                p.getUser().getId(),
-                p.getUser().getUsername(),
+                p.getEmployee().getId(),
+                p.getEmployee().getFirstName() + " " + p.getEmployee().getLastName(),
                 p.getBasicSalary(),
                 p.getAllowances(),
                 p.getDeductions(),
